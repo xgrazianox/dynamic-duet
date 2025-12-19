@@ -1,12 +1,33 @@
 import { useState } from 'react';
-import { RefreshCw, Download, Upload, CheckCircle, XCircle, Edit2 } from 'lucide-react';
+import { RefreshCw, Upload, CheckCircle, XCircle, Edit2, Plus, Trash2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { mockInstruments, mockPricePoints } from '@/lib/mockData';
-import { SLEEVES } from '@/types/portfolio';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { mockInstruments as initialInstruments, mockPricePoints } from '@/lib/mockData';
+import { SLEEVES, Instrument, SleeveCategory } from '@/types/portfolio';
+import { toast } from '@/hooks/use-toast';
 
 export default function InputsPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [instruments, setInstruments] = useState<Instrument[]>(initialInstruments);
+  const [editingInstrument, setEditingInstrument] = useState<Instrument | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isNewInstrument, setIsNewInstrument] = useState(false);
 
   const getLatestPrice = (instrumentId: string) => {
     const prices = mockPricePoints
@@ -14,6 +35,77 @@ export default function InputsPage() {
       .sort((a, b) => b.date.localeCompare(a.date));
     return prices[0];
   };
+
+  const handleEditInstrument = (instrument: Instrument) => {
+    setEditingInstrument({ ...instrument });
+    setIsNewInstrument(false);
+    setIsDialogOpen(true);
+  };
+
+  const handleAddInstrument = () => {
+    const newInstrument: Instrument = {
+      id: `new-${Date.now()}`,
+      name: '',
+      ticker: '',
+      isin: '',
+      exchange: '',
+      provider: 'yahoo',
+      currency: 'EUR',
+      category: 'CORE',
+      sleeveKey: 'WORLD_CORE',
+      isActive: true,
+    };
+    setEditingInstrument(newInstrument);
+    setIsNewInstrument(true);
+    setIsDialogOpen(true);
+  };
+
+  const handleSaveInstrument = () => {
+    if (!editingInstrument) return;
+
+    if (!editingInstrument.name.trim() || !editingInstrument.ticker.trim()) {
+      toast({
+        title: "Errore",
+        description: "Nome e Ticker sono obbligatori",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isNewInstrument) {
+      setInstruments(prev => [...prev, editingInstrument]);
+      toast({
+        title: "Strumento aggiunto",
+        description: `${editingInstrument.name} è stato aggiunto al portafoglio`,
+      });
+    } else {
+      setInstruments(prev => 
+        prev.map(i => i.id === editingInstrument.id ? editingInstrument : i)
+      );
+      toast({
+        title: "Strumento modificato",
+        description: `${editingInstrument.name} è stato aggiornato`,
+      });
+    }
+
+    setIsDialogOpen(false);
+    setEditingInstrument(null);
+  };
+
+  const handleDeleteInstrument = () => {
+    if (!editingInstrument) return;
+    
+    setInstruments(prev => prev.filter(i => i.id !== editingInstrument.id));
+    toast({
+      title: "Strumento eliminato",
+      description: `${editingInstrument.name} è stato rimosso dal portafoglio`,
+    });
+    setIsDialogOpen(false);
+    setEditingInstrument(null);
+  };
+
+  const sleeveKeys = Object.keys(SLEEVES);
+  const categories: SleeveCategory[] = ['CORE', 'FACTOR', 'THEME', 'HEDGE', 'CASH'];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -32,6 +124,10 @@ export default function InputsPage() {
             onChange={(e) => setSelectedMonth(e.target.value)}
             className="w-40"
           />
+          <Button variant="outline" onClick={handleAddInstrument}>
+            <Plus className="h-4 w-4" />
+            Aggiungi Strumento
+          </Button>
           <Button variant="outline">
             <Upload className="h-4 w-4" />
             Importa CSV
@@ -48,7 +144,7 @@ export default function InputsPage() {
         <div className="p-6 border-b border-border">
           <h3 className="font-semibold">Strumenti Configurati</h3>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {mockInstruments.length} strumenti attivi
+            {instruments.length} strumenti attivi
           </p>
         </div>
 
@@ -68,7 +164,7 @@ export default function InputsPage() {
               </tr>
             </thead>
             <tbody>
-              {mockInstruments.map(instrument => {
+              {instruments.map(instrument => {
                 const latestPrice = getLatestPrice(instrument.id);
                 const sleeve = SLEEVES[instrument.sleeveKey];
                 
@@ -100,7 +196,12 @@ export default function InputsPage() {
                       )}
                     </td>
                     <td className="text-center">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => handleEditInstrument(instrument)}
+                      >
                         <Edit2 className="h-4 w-4" />
                       </Button>
                     </td>
@@ -160,6 +261,191 @@ export default function InputsPage() {
           </div>
         </div>
       </div>
+
+      {/* Edit/Add Instrument Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {isNewInstrument ? 'Aggiungi Nuovo Strumento' : 'Modifica Strumento'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {editingInstrument && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome *</Label>
+                  <Input
+                    id="name"
+                    value={editingInstrument.name}
+                    onChange={(e) => setEditingInstrument({
+                      ...editingInstrument,
+                      name: e.target.value
+                    })}
+                    placeholder="Es. MSCI World Core"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ticker">Ticker *</Label>
+                  <Input
+                    id="ticker"
+                    value={editingInstrument.ticker}
+                    onChange={(e) => setEditingInstrument({
+                      ...editingInstrument,
+                      ticker: e.target.value
+                    })}
+                    placeholder="Es. IWDA.AS"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="isin">ISIN</Label>
+                  <Input
+                    id="isin"
+                    value={editingInstrument.isin || ''}
+                    onChange={(e) => setEditingInstrument({
+                      ...editingInstrument,
+                      isin: e.target.value
+                    })}
+                    placeholder="Es. IE00B4L5Y983"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="exchange">Exchange</Label>
+                  <Input
+                    id="exchange"
+                    value={editingInstrument.exchange || ''}
+                    onChange={(e) => setEditingInstrument({
+                      ...editingInstrument,
+                      exchange: e.target.value
+                    })}
+                    placeholder="Es. XAMS"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Categoria</Label>
+                  <Select
+                    value={editingInstrument.category}
+                    onValueChange={(value: SleeveCategory) => setEditingInstrument({
+                      ...editingInstrument,
+                      category: value
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Sleeve</Label>
+                  <Select
+                    value={editingInstrument.sleeveKey}
+                    onValueChange={(value) => setEditingInstrument({
+                      ...editingInstrument,
+                      sleeveKey: value
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sleeveKeys.map(key => (
+                        <SelectItem key={key} value={key}>
+                          {SLEEVES[key]?.name || key}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Valuta</Label>
+                  <Select
+                    value={editingInstrument.currency}
+                    onValueChange={(value: 'EUR' | 'USD' | 'CHF') => setEditingInstrument({
+                      ...editingInstrument,
+                      currency: value
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="CHF">CHF</SelectItem>
+                      <SelectItem value="GBP">GBP</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Provider Dati</Label>
+                  <Select
+                    value={editingInstrument.provider}
+                    onValueChange={(value) => setEditingInstrument({
+                      ...editingInstrument,
+                      provider: value
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yahoo">Yahoo Finance</SelectItem>
+                      <SelectItem value="stooq">Stooq</SelectItem>
+                      <SelectItem value="alpha_vantage">Alpha Vantage</SelectItem>
+                      <SelectItem value="manual">Manuale</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <Label htmlFor="isActive">Strumento Attivo</Label>
+                <Switch
+                  id="isActive"
+                  checked={editingInstrument.isActive}
+                  onCheckedChange={(checked) => setEditingInstrument({
+                    ...editingInstrument,
+                    isActive: checked
+                  })}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex justify-between">
+            {!isNewInstrument && (
+              <Button variant="destructive" onClick={handleDeleteInstrument}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Elimina
+              </Button>
+            )}
+            <div className="flex gap-2 ml-auto">
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                Annulla
+              </Button>
+              <Button onClick={handleSaveInstrument}>
+                <Save className="h-4 w-4 mr-2" />
+                Salva
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
