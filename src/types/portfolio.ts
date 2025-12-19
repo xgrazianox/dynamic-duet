@@ -15,11 +15,119 @@ export type AlertCode =
   | 'NOT_ENOUGH_DATA'
   | 'NOT_ENOUGH_DATA_THEME'
   | 'THEME_OVERWEIGHT_TAKE_PROFIT'
-  | 'INSUFFICIENT_CASH_FOR_TILT';
+  | 'INSUFFICIENT_CASH_FOR_TILT'
+  | 'A_REGIME_SWITCH'
+  | 'A_NEUTRAL_BAND'
+  | 'B_REGIME_SWITCH'
+  | 'B_INCONCLUSIVE'
+  | 'REGIME_CONFLICT'
+  | 'PORTFOLIO_MODE_CHANGED'
+  | 'TILT_DISABLED_IN_RISKOFF';
 
 export type PriceSource = 'AUTO_API' | 'MANUAL';
 
 export type TransactionType = 'BUY' | 'SELL';
+
+// Signal Engine Types
+export type RawSignal = 'ON' | 'OFF' | 'NEUTRAL';
+
+export type DecisionMode = 'USE_A' | 'USE_B' | 'A_AND_B' | 'A_OR_B' | 'A_PRIORITY';
+
+export type NeutralHandling = 'EXCLUDE' | 'KEEP_PREVIOUS';
+
+// Signal A - Double Confirmation on MSCI/Gold Ratio
+export interface SignalAConfig {
+  smaMonths: number;           // default 10
+  bandPct: number;             // default 0.015 (1.5%)
+  confirmMonths: number;       // default 2
+}
+
+export interface SignalADataPoint {
+  date: string;
+  ratio: number;
+  sma: number | null;
+  upperBand: number | null;
+  lowerBand: number | null;
+  rawSignal: RawSignal;
+  confirmedRegime: Regime;
+  reason: string;
+}
+
+export interface SignalAResult {
+  currentRegime: Regime;
+  rawSignal: RawSignal;
+  ratio: number;
+  sma: number;
+  upperBand: number;
+  lowerBand: number;
+  confirmCount: number;
+  reason: string;
+  history: SignalADataPoint[];
+}
+
+// Signal B - 2-out-of-3 Majority Vote
+export interface SignalBConfig {
+  confirmMonths: number;       // default 2
+  neutralHandling: NeutralHandling;  // default 'EXCLUDE'
+  minVotesRequired: number;    // default 2
+  // Sub-signal configs
+  b1UseRatio: boolean;         // default true (uses MSCI/Gold ratio)
+  b2SmaMonths: number;         // default 10 (MSCI trend)
+  b2BandPct: number;           // default 0.01 (1%)
+  b3VolLookback: number;       // default 6 months
+  b3VolThreshold: number;      // default 0.18 (18%)
+}
+
+export interface SignalBVote {
+  b1: RawSignal;  // MSCI/Gold ratio trend
+  b2: RawSignal;  // MSCI equity trend
+  b3: RawSignal;  // Volatility filter
+  onCount: number;
+  offCount: number;
+  rawSignal: RawSignal;
+}
+
+export interface SignalBDataPoint {
+  date: string;
+  b1Signal: RawSignal;
+  b1Value: number;  // ratio
+  b2Signal: RawSignal;
+  b2Value: number;  // MSCI price
+  b2Sma: number | null;
+  b3Signal: RawSignal;
+  b3Value: number;  // volatility
+  vote: SignalBVote;
+  confirmedRegime: Regime;
+  reason: string;
+}
+
+export interface SignalBResult {
+  currentRegime: Regime;
+  vote: SignalBVote;
+  confirmCount: number;
+  reason: string;
+  history: SignalBDataPoint[];
+}
+
+// Decision Layer
+export interface DecisionLayerConfig {
+  mode: DecisionMode;
+}
+
+export interface DecisionResult {
+  finalRegime: Regime;
+  regimeA: Regime;
+  regimeB: Regime;
+  hasConflict: boolean;
+  reason: string;
+}
+
+// Combined Signal Engine Config
+export interface SignalEngineConfig {
+  signalA: SignalAConfig;
+  signalB: SignalBConfig;
+  decision: DecisionLayerConfig;
+}
 
 export interface Instrument {
   id: string;
@@ -160,4 +268,26 @@ export const SLEEVES: Record<string, SleeveInfo> = {
   CLEAN_ENERGY: { key: 'CLEAN_ENERGY', name: 'Clean Energy', category: 'THEME' },
   GOLD: { key: 'GOLD', name: 'Oro', category: 'HEDGE' },
   ESTR_CASH: { key: 'ESTR_CASH', name: 'ESTR / Cash', category: 'CASH' },
+};
+
+// Default Signal Engine Configuration
+export const defaultSignalEngineConfig: SignalEngineConfig = {
+  signalA: {
+    smaMonths: 10,
+    bandPct: 0.015,
+    confirmMonths: 2,
+  },
+  signalB: {
+    confirmMonths: 2,
+    neutralHandling: 'EXCLUDE',
+    minVotesRequired: 2,
+    b1UseRatio: true,
+    b2SmaMonths: 10,
+    b2BandPct: 0.01,
+    b3VolLookback: 6,
+    b3VolThreshold: 0.18,
+  },
+  decision: {
+    mode: 'A_AND_B',
+  },
 };
