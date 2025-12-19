@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +46,7 @@ import { ClosePositionModal } from '@/components/portfolio/ClosePositionModal';
 import { AddInstrumentModal } from '@/components/portfolio/AddInstrumentModal';
 import { PositionDetailDrawer } from '@/components/portfolio/PositionDetailDrawer';
 import { useToast } from '@/hooks/use-toast';
+import { parseDeepLinkParams } from '@/lib/alertRouting';
 
 interface EnrichedPosition {
   position: PortfolioPosition;
@@ -64,6 +66,7 @@ interface EnrichedPosition {
 
 export default function PortfolioPage() {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [positions, setPositions] = useState<PortfolioPosition[]>(mockPositions);
   const [instruments, setInstruments] = useState<Instrument[]>(mockInstruments);
   const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
@@ -78,6 +81,13 @@ export default function PortfolioPage() {
   const [addInstrumentOpen, setAddInstrumentOpen] = useState(false);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<EnrichedPosition | null>(null);
+  
+  // Deep link prefill values
+  const [prefillAmount, setPrefillAmount] = useState<number | undefined>(undefined);
+  
+  // Ref for highlighted row
+  const highlightedRowRef = useRef<HTMLTableRowElement>(null);
+  const [highlightedPositionId, setHighlightedPositionId] = useState<string | null>(null);
 
   const regime = mockStrategyState.regime;
   const targets = regime === 'RISK_ON' ? mockTargetsRiskOn : mockTargetsRiskOff;
@@ -128,6 +138,27 @@ export default function PortfolioPage() {
       })
       .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
   }, [positions, instruments, targets, totalValue, showOnlyActive]);
+
+  // Handle deep-link from alerts
+  useEffect(() => {
+    const deepLink = parseDeepLinkParams(searchParams);
+    if (deepLink.action || deepLink.sleeveKey || deepLink.instrumentId) {
+      let targetPosition = deepLink.instrumentId 
+        ? enrichedPositions.find(ep => ep.instrument.id === deepLink.instrumentId)
+        : enrichedPositions.find(ep => ep.position.sleeveKey === deepLink.sleeveKey);
+      
+      if (targetPosition) {
+        setSelectedPosition(targetPosition);
+        setHighlightedPositionId(targetPosition.position.id);
+        if (deepLink.amount) setPrefillAmount(deepLink.amount);
+        if (deepLink.action === 'buy') setIncreaseModalOpen(true);
+        else if (deepLink.action === 'sell') setDecreaseModalOpen(true);
+        else if (deepLink.action === 'close') setCloseModalOpen(true);
+        setTimeout(() => setHighlightedPositionId(null), 3000);
+      }
+      setSearchParams({});
+    }
+  }, [searchParams, enrichedPositions, setSearchParams]);
 
   const handleRefreshPrices = async () => {
     setIsRefreshing(true);
@@ -425,7 +456,8 @@ export default function PortfolioPage() {
                 {enrichedPositions.map((enriched) => (
                   <TableRow 
                     key={enriched.position.id}
-                    className={Math.abs(enriched.delta) > 0.05 ? 'bg-yellow-500/10' : ''}
+                    ref={highlightedPositionId === enriched.position.id ? highlightedRowRef : null}
+                    className={`${Math.abs(enriched.delta) > 0.05 ? 'bg-yellow-500/10' : ''} ${highlightedPositionId === enriched.position.id ? 'ring-2 ring-primary animate-pulse' : ''}`}
                   >
                     <TableCell>
                       <div className="flex flex-col">

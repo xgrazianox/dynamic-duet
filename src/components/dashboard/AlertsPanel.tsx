@@ -1,5 +1,12 @@
-import { AlertTriangle, Info, XCircle, CheckCircle } from 'lucide-react';
+import { AlertTriangle, Info, XCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import { Alert, AlertSeverity } from '@/types/portfolio';
+import { Button } from '@/components/ui/button';
+import { useAlertNavigation } from '@/hooks/useAlertNavigation';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface AlertsPanelProps {
   alerts: Alert[];
@@ -12,7 +19,12 @@ const severityConfig: Record<AlertSeverity, { icon: typeof Info; color: string; 
 };
 
 export function AlertsPanel({ alerts }: AlertsPanelProps) {
+  const { navigateToResolve, getActionLabel, getDestinationPreview } = useAlertNavigation();
   const unresolvedAlerts = alerts.filter(a => !a.resolved);
+
+  const handleAlertClick = (alert: Alert) => {
+    navigateToResolve(alert);
+  };
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 card-glow">
@@ -36,20 +48,40 @@ export function AlertsPanel({ alerts }: AlertsPanelProps) {
           {unresolvedAlerts.slice(0, 5).map(alert => {
             const config = severityConfig[alert.severity];
             const Icon = config.icon;
+            const destinationPreview = getDestinationPreview(alert);
             
             return (
-              <div 
-                key={alert.id}
-                className={`flex items-start gap-3 p-3 rounded-lg ${config.bg}`}
-              >
-                <Icon className={`h-5 w-5 mt-0.5 flex-shrink-0 ${config.color}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{alert.code.replace(/_/g, ' ')}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                    {alert.message}
-                  </p>
-                </div>
-              </div>
+              <Tooltip key={alert.id}>
+                <TooltipTrigger asChild>
+                  <div 
+                    className={`flex items-start gap-3 p-3 rounded-lg ${config.bg} cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all group`}
+                    onClick={() => handleAlertClick(alert)}
+                  >
+                    <Icon className={`h-5 w-5 mt-0.5 flex-shrink-0 ${config.color}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{alert.code.replace(/_/g, ' ')}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                        {alert.message}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-xs gap-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAlertClick(alert);
+                      }}
+                    >
+                      {getActionLabel(alert)}
+                      <ExternalLink className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p className="text-xs">Ti porterà a: {destinationPreview}</p>
+                </TooltipContent>
+              </Tooltip>
             );
           })}
         </div>

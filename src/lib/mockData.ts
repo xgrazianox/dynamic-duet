@@ -150,7 +150,11 @@ export const mockAlerts: Alert[] = [
     severity: 'INFO', 
     code: 'REGIME_SWITCH', 
     message: `Regime cambiato a ${regime === 'RISK_ON' ? 'RISK-ON' : 'RISK-OFF'}: Ratio MSCI/Gold (${currentRatio.toFixed(2)}) ${regime === 'RISK_ON' ? '>' : '<'} SMA10 (${sma10.toFixed(2)})`,
-    resolved: false 
+    resolved: false,
+    status: 'OPEN',
+    resolutionType: 'OPEN_SIGNALS_VIEW',
+    targetPage: 'SIGNALS',
+    targetEntity: { panel: 'decision' }
   },
   { 
     id: '2', 
@@ -158,7 +162,49 @@ export const mockAlerts: Alert[] = [
     severity: 'WARNING', 
     code: 'REBALANCE_NEEDED', 
     message: 'Deviazione dal target >5% rilevata su alcuni sleeve. Ribilanciamento consigliato.',
-    resolved: false 
+    resolved: false,
+    status: 'OPEN',
+    resolutionType: 'NAVIGATE_ONLY',
+    targetPage: 'PORTFOLIO',
+    targetEntity: { sleeveKey: 'WORLD_CORE' },
+    prefillPayload: { suggestedAmountEur: 500, suggestedAction: 'BUY' }
+  },
+  { 
+    id: '3', 
+    asOfDate: getMonthDate(0), 
+    severity: 'CRITICAL', 
+    code: 'PRICE_UPDATE_FAILED', 
+    message: 'Impossibile aggiornare prezzo per COPX (Critical Metals). Ultimo prezzo: 2 giorni fa.',
+    resolved: false,
+    status: 'OPEN',
+    resolutionType: 'OPEN_PRICE_UPDATE',
+    targetPage: 'INPUTS',
+    targetEntity: { instrumentId: '7', fieldToFocus: 'prices' }
+  },
+  { 
+    id: '4', 
+    asOfDate: getMonthDate(1), 
+    severity: 'WARNING', 
+    code: 'THEME_OVERWEIGHT_TAKE_PROFIT', 
+    message: 'DEFENSE +32% sopra target. Considera take profit.',
+    resolved: false,
+    status: 'OPEN',
+    resolutionType: 'OPEN_TRADE_MODAL_SELL',
+    targetPage: 'PORTFOLIO',
+    targetEntity: { sleeveKey: 'DEFENSE', instrumentId: '5' },
+    prefillPayload: { suggestedAmountEur: 800, suggestedAction: 'SELL' }
+  },
+  { 
+    id: '5', 
+    asOfDate: getMonthDate(0), 
+    severity: 'INFO', 
+    code: 'THEME_NOT_ELIGIBLE', 
+    message: 'Clean Energy non più eleggibile: trend negativo sotto SMA10.',
+    resolved: true,
+    status: 'RESOLVED',
+    resolutionType: 'OPEN_THEME_SELECTOR',
+    targetPage: 'SIGNALS',
+    targetEntity: { themeSlot: 'THEME1' }
   },
 ];
 
