@@ -10,6 +10,7 @@ import RiskOnPage from "./pages/RiskOnPage";
 import RiskOffPage from "./pages/RiskOffPage";
 import AlertsPage from "./pages/AlertsPage";
 import SettingsPage from "./pages/SettingsPage";
+import PerformancePage from "./pages/PerformancePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/risk-off" element={<RiskOffPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/performance" element={<PerformancePage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
