@@ -8,11 +8,13 @@ import {
   Settings,
   TrendingUp,
   LineChart,
-  Radio
+  Radio,
+  Wallet
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Portafoglio', href: '/portfolio', icon: Wallet },
   { name: 'Dati & Prezzi', href: '/inputs', icon: Database },
   { name: 'Signal Engine', href: '/signals', icon: Radio },
   { name: 'Target Risk-On', href: '/risk-on', icon: TrendingUp },

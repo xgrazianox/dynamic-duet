@@ -12,6 +12,7 @@ import AlertsPage from "./pages/AlertsPage";
 import SettingsPage from "./pages/SettingsPage";
 import PerformancePage from "./pages/PerformancePage";
 import SignalsPage from "./pages/SignalsPage";
+import PortfolioPage from "./pages/PortfolioPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
         <Routes>
           <Route element={<MainLayout />}>
             <Route path="/" element={<Index />} />
+            <Route path="/portfolio" element={<PortfolioPage />} />
             <Route path="/inputs" element={<InputsPage />} />
             <Route path="/signals" element={<SignalsPage />} />
             <Route path="/risk-on" element={<RiskOnPage />} />

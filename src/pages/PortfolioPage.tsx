@@ -1,0 +1,555 @@
+import { useState, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { 
+  RefreshCw, 
+  Plus, 
+  MoreHorizontal, 
+  TrendingUp, 
+  TrendingDown, 
+  X,
+  AlertTriangle,
+  CheckCircle,
+  Info
+} from 'lucide-react';
+import { 
+  mockPositions, 
+  mockInstruments, 
+  mockTargetsRiskOn, 
+  mockTargetsRiskOff, 
+  mockAlerts,
+  mockStrategyState,
+  mockTransactions
+} from '@/lib/mockData';
+import { SLEEVES, PortfolioPosition, Instrument, Transaction } from '@/types/portfolio';
+import { IncreasePositionModal } from '@/components/portfolio/IncreasePositionModal';
+import { DecreasePositionModal } from '@/components/portfolio/DecreasePositionModal';
+import { ClosePositionModal } from '@/components/portfolio/ClosePositionModal';
+import { AddInstrumentModal } from '@/components/portfolio/AddInstrumentModal';
+import { PositionDetailDrawer } from '@/components/portfolio/PositionDetailDrawer';
+import { useToast } from '@/hooks/use-toast';
+
+interface EnrichedPosition {
+  position: PortfolioPosition;
+  instrument: Instrument;
+  sleeveName: string;
+  currentWeight: number;
+  targetWeight: number;
+  delta: number;
+  deltaEur: number;
+  suggestedTradeEur: number;
+  unrealizedPL: number;
+  unrealizedPLPercent: number;
+  lastPrice: number;
+  costBasis: number;
+  isInTarget: boolean;
+}
+
+export default function PortfolioPage() {
+  const { toast } = useToast();
+  const [positions, setPositions] = useState<PortfolioPosition[]>(mockPositions);
+  const [instruments, setInstruments] = useState<Instrument[]>(mockInstruments);
+  const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
+  const [showOnlyActive, setShowOnlyActive] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(new Date().toLocaleString('it-IT'));
+  
+  // Modal states
+  const [increaseModalOpen, setIncreaseModalOpen] = useState(false);
+  const [decreaseModalOpen, setDecreaseModalOpen] = useState(false);
+  const [closeModalOpen, setCloseModalOpen] = useState(false);
+  const [addInstrumentOpen, setAddInstrumentOpen] = useState(false);
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState<EnrichedPosition | null>(null);
+
+  const regime = mockStrategyState.regime;
+  const targets = regime === 'RISK_ON' ? mockTargetsRiskOn : mockTargetsRiskOff;
+  const criticalAlerts = mockAlerts.filter(a => a.severity === 'CRITICAL' && !a.resolved).length;
+  const warningAlerts = mockAlerts.filter(a => a.severity === 'WARNING' && !a.resolved).length;
+
+  const totalValue = useMemo(() => 
+    positions.reduce((sum, p) => sum + p.marketValueEur, 0), 
+    [positions]
+  );
+
+  const enrichedPositions: EnrichedPosition[] = useMemo(() => {
+    return positions
+      .filter(p => !showOnlyActive || !p.isClosed)
+      .map(position => {
+        const instrument = instruments.find(i => i.id === position.instrumentId)!;
+        const sleeve = SLEEVES[position.sleeveKey];
+        const target = targets.find(t => t.sleeveKey === position.sleeveKey);
+        
+        const currentWeight = position.marketValueEur / totalValue;
+        const targetWeight = target?.baseWeight || 0;
+        const delta = targetWeight - currentWeight;
+        const deltaEur = delta * totalValue;
+        const suggestedTradeEur = Math.round(deltaEur / 50) * 50;
+        
+        const lastPrice = position.lastPrice || (position.marketValueEur / (position.quantity || 1));
+        const costBasis = (position.averageBuyPrice || lastPrice) * (position.quantity || 1);
+        const unrealizedPL = position.marketValueEur - costBasis;
+        const unrealizedPLPercent = costBasis > 0 ? (unrealizedPL / costBasis) * 100 : 0;
+        
+        const isInTarget = Math.abs(delta) < 0.005; // ±0.5% threshold
+        
+        return {
+          position,
+          instrument,
+          sleeveName: sleeve?.name || position.sleeveKey,
+          currentWeight,
+          targetWeight,
+          delta,
+          deltaEur,
+          suggestedTradeEur,
+          unrealizedPL,
+          unrealizedPLPercent,
+          lastPrice,
+          costBasis,
+          isInTarget
+        };
+      })
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  }, [positions, instruments, targets, totalValue, showOnlyActive]);
+
+  const handleRefreshPrices = async () => {
+    setIsRefreshing(true);
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setLastUpdate(new Date().toLocaleString('it-IT'));
+    setIsRefreshing(false);
+    toast({
+      title: "Quotazioni aggiornate",
+      description: "Tutti i prezzi sono stati aggiornati con successo."
+    });
+  };
+
+  const handleIncrease = (enriched: EnrichedPosition) => {
+    setSelectedPosition(enriched);
+    setIncreaseModalOpen(true);
+  };
+
+  const handleDecrease = (enriched: EnrichedPosition) => {
+    setSelectedPosition(enriched);
+    setDecreaseModalOpen(true);
+  };
+
+  const handleClose = (enriched: EnrichedPosition) => {
+    setSelectedPosition(enriched);
+    setCloseModalOpen(true);
+  };
+
+  const handleViewDetail = (enriched: EnrichedPosition) => {
+    setSelectedPosition(enriched);
+    setDetailDrawerOpen(true);
+  };
+
+  const handleConfirmIncrease = (amount: number, quantity: number, price: number, notes: string, date: string) => {
+    if (!selectedPosition) return;
+    
+    const newTransaction: Transaction = {
+      id: `t${Date.now()}`,
+      instrumentId: selectedPosition.instrument.id,
+      sleeveKey: selectedPosition.position.sleeveKey,
+      type: 'BUY',
+      date,
+      quantity,
+      pricePerUnit: price,
+      totalValueEur: amount,
+      notes,
+      createdAt: new Date().toISOString()
+    };
+    
+    setTransactions(prev => [...prev, newTransaction]);
+    
+    // Update position
+    setPositions(prev => prev.map(p => {
+      if (p.id === selectedPosition.position.id) {
+        const oldQuantity = p.quantity || 0;
+        const oldCost = (p.averageBuyPrice || 0) * oldQuantity;
+        const newTotalQuantity = oldQuantity + quantity;
+        const newAvgPrice = (oldCost + amount) / newTotalQuantity;
+        
+        return {
+          ...p,
+          quantity: newTotalQuantity,
+          marketValueEur: p.marketValueEur + amount,
+          averageBuyPrice: newAvgPrice
+        };
+      }
+      return p;
+    }));
+    
+    setIncreaseModalOpen(false);
+    toast({
+      title: "Posizione aumentata",
+      description: `Aggiunto €${amount.toLocaleString('it-IT')} a ${selectedPosition.instrument.name}`
+    });
+  };
+
+  const handleConfirmDecrease = (amount: number, quantity: number, price: number, notes: string, date: string) => {
+    if (!selectedPosition) return;
+    
+    const newTransaction: Transaction = {
+      id: `t${Date.now()}`,
+      instrumentId: selectedPosition.instrument.id,
+      sleeveKey: selectedPosition.position.sleeveKey,
+      type: 'SELL',
+      date,
+      quantity,
+      pricePerUnit: price,
+      totalValueEur: amount,
+      notes,
+      createdAt: new Date().toISOString()
+    };
+    
+    setTransactions(prev => [...prev, newTransaction]);
+    
+    // Update position
+    setPositions(prev => prev.map(p => {
+      if (p.id === selectedPosition.position.id) {
+        const newQuantity = (p.quantity || 0) - quantity;
+        const newMarketValue = p.marketValueEur - amount;
+        
+        if (newQuantity <= 0 || newMarketValue <= 0) {
+          return { ...p, quantity: 0, marketValueEur: 0, isClosed: true };
+        }
+        
+        return {
+          ...p,
+          quantity: newQuantity,
+          marketValueEur: newMarketValue
+        };
+      }
+      return p;
+    }));
+    
+    setDecreaseModalOpen(false);
+    toast({
+      title: "Posizione ridotta",
+      description: `Venduto €${amount.toLocaleString('it-IT')} di ${selectedPosition.instrument.name}`
+    });
+  };
+
+  const handleConfirmClose = (notes: string, date: string) => {
+    if (!selectedPosition) return;
+    
+    const newTransaction: Transaction = {
+      id: `t${Date.now()}`,
+      instrumentId: selectedPosition.instrument.id,
+      sleeveKey: selectedPosition.position.sleeveKey,
+      type: 'CLOSE',
+      date,
+      quantity: selectedPosition.position.quantity || 0,
+      pricePerUnit: selectedPosition.lastPrice,
+      totalValueEur: selectedPosition.position.marketValueEur,
+      notes,
+      createdAt: new Date().toISOString()
+    };
+    
+    setTransactions(prev => [...prev, newTransaction]);
+    
+    setPositions(prev => prev.map(p => {
+      if (p.id === selectedPosition.position.id) {
+        return { ...p, quantity: 0, marketValueEur: 0, isClosed: true };
+      }
+      return p;
+    }));
+    
+    setCloseModalOpen(false);
+    toast({
+      title: "Posizione chiusa",
+      description: `Chiusa posizione su ${selectedPosition.instrument.name}`
+    });
+  };
+
+  const handleAddInstrument = (instrument: Instrument, position?: { quantity: number; price: number; date: string; notes: string }) => {
+    // Add new instrument
+    setInstruments(prev => [...prev, instrument]);
+    
+    if (position) {
+      const newPosition: PortfolioPosition = {
+        id: `p${Date.now()}`,
+        instrumentId: instrument.id,
+        sleeveKey: instrument.sleeveKey,
+        asOfDate: position.date,
+        quantity: position.quantity,
+        marketValueEur: position.quantity * position.price,
+        averageBuyPrice: position.price,
+        note: position.notes,
+        isClosed: false
+      };
+      
+      setPositions(prev => [...prev, newPosition]);
+      
+      const newTransaction: Transaction = {
+        id: `t${Date.now()}`,
+        instrumentId: instrument.id,
+        sleeveKey: instrument.sleeveKey,
+        type: 'BUY',
+        date: position.date,
+        quantity: position.quantity,
+        pricePerUnit: position.price,
+        totalValueEur: position.quantity * position.price,
+        notes: position.notes,
+        createdAt: new Date().toISOString()
+      };
+      
+      setTransactions(prev => [...prev, newTransaction]);
+    }
+    
+    setAddInstrumentOpen(false);
+    toast({
+      title: "Strumento aggiunto",
+      description: `${instrument.name} aggiunto al portafoglio`
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex items-center gap-6">
+              <div>
+                <p className="text-sm text-muted-foreground">Valore Totale Portafoglio</p>
+                <p className="text-3xl font-bold text-foreground">
+                  €{totalValue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className="h-12 w-px bg-border" />
+              <div>
+                <p className="text-sm text-muted-foreground">Regime Attuale</p>
+                <Badge variant={regime === 'RISK_ON' ? 'default' : 'secondary'} className="mt-1">
+                  {regime === 'RISK_ON' ? 'RISK-ON' : 'RISK-OFF'}
+                </Badge>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              {/* Alerts summary */}
+              <div className="flex items-center gap-2">
+                {criticalAlerts > 0 && (
+                  <Badge variant="destructive" className="gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    {criticalAlerts} critici
+                  </Badge>
+                )}
+                {warningAlerts > 0 && (
+                  <Badge variant="outline" className="gap-1 border-yellow-500 text-yellow-600">
+                    <Info className="h-3 w-3" />
+                    {warningAlerts} warning
+                  </Badge>
+                )}
+              </div>
+              
+              {/* Refresh button */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  Ultimo update: {lastUpdate}
+                </span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRefreshPrices}
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Aggiorna quotazioni
+                </Button>
+              </div>
+              
+              {/* Toggle active only */}
+              <div className="flex items-center gap-2">
+                <Switch 
+                  id="show-active" 
+                  checked={showOnlyActive}
+                  onCheckedChange={setShowOnlyActive}
+                />
+                <Label htmlFor="show-active" className="text-sm">Solo attive</Label>
+              </div>
+              
+              {/* Add instrument */}
+              <Button onClick={() => setAddInstrumentOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Aggiungi strumento
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Positions table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Posizioni</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Strumento</TableHead>
+                  <TableHead className="text-right">Prezzo Acq.</TableHead>
+                  <TableHead className="text-right">Quantità</TableHead>
+                  <TableHead className="text-right">Prezzo Att.</TableHead>
+                  <TableHead className="text-right">Valore</TableHead>
+                  <TableHead className="text-right">P/L</TableHead>
+                  <TableHead className="text-right">Peso Att.</TableHead>
+                  <TableHead className="text-right">Target</TableHead>
+                  <TableHead className="text-right">Delta</TableHead>
+                  <TableHead className="text-right">Trade Sugg.</TableHead>
+                  <TableHead className="text-center">Stato</TableHead>
+                  <TableHead className="text-center">Azioni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {enrichedPositions.map((enriched) => (
+                  <TableRow 
+                    key={enriched.position.id}
+                    className={Math.abs(enriched.delta) > 0.05 ? 'bg-yellow-500/10' : ''}
+                  >
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{enriched.instrument.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {enriched.instrument.ticker} • {enriched.sleeveName}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      €{enriched.position.averageBuyPrice?.toFixed(2) || '-'}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {enriched.position.quantity?.toLocaleString('it-IT') || '-'}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      €{enriched.lastPrice.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono font-medium">
+                      €{enriched.position.marketValueEur.toLocaleString('it-IT')}
+                    </TableCell>
+                    <TableCell className={`text-right font-mono ${enriched.unrealizedPL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <div className="flex flex-col items-end">
+                        <span>{enriched.unrealizedPL >= 0 ? '+' : ''}€{enriched.unrealizedPL.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</span>
+                        <span className="text-xs">
+                          ({enriched.unrealizedPLPercent >= 0 ? '+' : ''}{enriched.unrealizedPLPercent.toFixed(1)}%)
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {(enriched.currentWeight * 100).toFixed(1)}%
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {(enriched.targetWeight * 100).toFixed(1)}%
+                    </TableCell>
+                    <TableCell className={`text-right font-mono ${enriched.delta >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {enriched.delta >= 0 ? '+' : ''}{(enriched.delta * 100).toFixed(1)}%
+                    </TableCell>
+                    <TableCell className={`text-right font-mono ${enriched.suggestedTradeEur >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {enriched.suggestedTradeEur >= 0 ? '+' : ''}€{enriched.suggestedTradeEur.toLocaleString('it-IT')}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {enriched.isInTarget ? (
+                        <Badge variant="outline" className="gap-1 border-green-500 text-green-600">
+                          <CheckCircle className="h-3 w-3" />
+                          In target
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="gap-1 border-orange-500 text-orange-600">
+                          <AlertTriangle className="h-3 w-3" />
+                          Da ribal.
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-popover border">
+                          <DropdownMenuItem onClick={() => handleIncrease(enriched)}>
+                            <TrendingUp className="h-4 w-4 mr-2 text-green-600" />
+                            Aumenta
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDecrease(enriched)}>
+                            <TrendingDown className="h-4 w-4 mr-2 text-red-600" />
+                            Diminuisci
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleClose(enriched)}>
+                            <X className="h-4 w-4 mr-2" />
+                            Chiudi posizione
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewDetail(enriched)}>
+                            <Info className="h-4 w-4 mr-2" />
+                            Dettagli
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Modals */}
+      <IncreasePositionModal
+        open={increaseModalOpen}
+        onOpenChange={setIncreaseModalOpen}
+        position={selectedPosition}
+        onConfirm={handleConfirmIncrease}
+      />
+      
+      <DecreasePositionModal
+        open={decreaseModalOpen}
+        onOpenChange={setDecreaseModalOpen}
+        position={selectedPosition}
+        onConfirm={handleConfirmDecrease}
+      />
+      
+      <ClosePositionModal
+        open={closeModalOpen}
+        onOpenChange={setCloseModalOpen}
+        position={selectedPosition}
+        onConfirm={handleConfirmClose}
+      />
+      
+      <AddInstrumentModal
+        open={addInstrumentOpen}
+        onOpenChange={setAddInstrumentOpen}
+        onAdd={handleAddInstrument}
+        existingInstruments={instruments}
+      />
+      
+      <PositionDetailDrawer
+        open={detailDrawerOpen}
+        onOpenChange={setDetailDrawerOpen}
+        position={selectedPosition}
+        transactions={transactions.filter(t => t.instrumentId === selectedPosition?.instrument.id)}
+      />
+    </div>
+  );
+}

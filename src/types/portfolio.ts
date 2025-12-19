@@ -26,7 +26,9 @@ export type AlertCode =
 
 export type PriceSource = 'AUTO_API' | 'MANUAL';
 
-export type TransactionType = 'BUY' | 'SELL';
+export type TransactionType = 'BUY' | 'SELL' | 'CLOSE' | 'INIT' | 'EDIT';
+
+export type InstrumentType = 'STOCK' | 'ETF' | 'ETC' | 'FUND' | 'CASH' | 'OTHER';
 
 // Signal Engine Types
 export type RawSignal = 'ON' | 'OFF' | 'NEUTRAL';
@@ -140,6 +142,9 @@ export interface Instrument {
   category: SleeveCategory;
   sleeveKey: string;
   isActive: boolean;
+  instrumentType?: InstrumentType;
+  yahooSymbol?: string;
+  exchangeCode?: string;
 }
 
 export interface PricePoint {
@@ -160,6 +165,10 @@ export interface PortfolioPosition {
   marketValueEur: number;
   averageBuyPrice?: number;
   note?: string;
+  costCurrency?: 'EUR' | 'USD' | 'CHF';
+  isClosed?: boolean;
+  lastPrice?: number;
+  lastPriceDate?: string;
 }
 
 export interface TargetAllocation {
@@ -236,6 +245,17 @@ export interface Transaction {
   fees?: number;
   notes?: string;
   createdAt: string;
+  fxRateUsed?: number;
+}
+
+// Yahoo search result
+export interface YahooSearchResult {
+  symbol: string;
+  name: string;
+  exchange: string;
+  type: InstrumentType;
+  currency: 'EUR' | 'USD' | 'CHF';
+  lastPrice?: number;
 }
 
 // Closed position for P&L tracking

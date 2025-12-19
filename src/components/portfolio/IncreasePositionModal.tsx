@@ -1,0 +1,196 @@
+import { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { TrendingUp } from 'lucide-react';
+
+interface EnrichedPosition {
+  position: {
+    id: string;
+    quantity?: number;
+    marketValueEur: number;
+    averageBuyPrice?: number;
+  };
+  instrument: {
+    id: string;
+    name: string;
+    ticker: string;
+    currency: 'EUR' | 'USD' | 'CHF';
+  };
+  suggestedTradeEur: number;
+  lastPrice: number;
+}
+
+interface IncreasePositionModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  position: EnrichedPosition | null;
+  onConfirm: (amount: number, quantity: number, price: number, notes: string, date: string) => void;
+}
+
+export function IncreasePositionModal({ open, onOpenChange, position, onConfirm }: IncreasePositionModalProps) {
+  const [amount, setAmount] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [price, setPrice] = useState('');
+  const [notes, setNotes] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [useSuggested, setUseSuggested] = useState(false);
+
+  useEffect(() => {
+    if (position) {
+      setPrice(position.lastPrice.toFixed(2));
+      if (useSuggested && position.suggestedTradeEur > 0) {
+        setAmount(position.suggestedTradeEur.toString());
+        setQuantity(Math.floor(position.suggestedTradeEur / position.lastPrice).toString());
+      }
+    }
+  }, [position, useSuggested]);
+
+  useEffect(() => {
+    if (amount && price && parseFloat(price) > 0) {
+      const qty = Math.floor(parseFloat(amount) / parseFloat(price));
+      setQuantity(qty.toString());
+    }
+  }, [amount, price]);
+
+  useEffect(() => {
+    if (quantity && price && parseFloat(price) > 0) {
+      const amt = parseFloat(quantity) * parseFloat(price);
+      setAmount(amt.toFixed(2));
+    }
+  }, [quantity]);
+
+  const handleConfirm = () => {
+    const amountNum = parseFloat(amount) || 0;
+    const quantityNum = parseFloat(quantity) || 0;
+    const priceNum = parseFloat(price) || 0;
+    
+    if (amountNum > 0 && quantityNum > 0 && priceNum > 0) {
+      onConfirm(amountNum, quantityNum, priceNum, notes, date);
+      resetForm();
+    }
+  };
+
+  const resetForm = () => {
+    setAmount('');
+    setQuantity('');
+    setPrice('');
+    setNotes('');
+    setDate(new Date().toISOString().split('T')[0]);
+    setUseSuggested(false);
+  };
+
+  if (!position) return null;
+
+  const suggestedAmount = Math.max(0, position.suggestedTradeEur);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-green-600" />
+            Aumenta Posizione
+          </DialogTitle>
+          <DialogDescription>
+            {position.instrument.name} ({position.instrument.ticker})
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="grid gap-4 py-4">
+          {suggestedAmount > 0 && (
+            <div className="flex items-center space-x-2 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+              <Checkbox 
+                id="use-suggested" 
+                checked={useSuggested}
+                onCheckedChange={(checked) => setUseSuggested(checked as boolean)}
+              />
+              <Label htmlFor="use-suggested" className="text-sm cursor-pointer">
+                Usa trade suggerito: <span className="font-mono font-medium">€{suggestedAmount.toLocaleString('it-IT')}</span>
+              </Label>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="amount">Importo (EUR)</Label>
+              <Input
+                id="amount"
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="quantity">Quantità</Label>
+              <Input
+                id="quantity"
+                type="number"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="price">Prezzo unitario ({position.instrument.currency})</Label>
+              <Input
+                id="price"
+                type="number"
+                step="0.01"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="date">Data operazione</Label>
+              <Input
+                id="date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Note</Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Note opzionali..."
+              rows={2}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Annulla
+          </Button>
+          <Button 
+            onClick={handleConfirm}
+            disabled={!amount || !quantity || !price || parseFloat(amount) <= 0}
+          >
+            Conferma Acquisto
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
