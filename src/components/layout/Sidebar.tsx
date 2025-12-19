@@ -7,12 +7,14 @@ import {
   AlertTriangle, 
   Settings,
   TrendingUp,
-  LineChart
+  LineChart,
+  Radio
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Dati & Prezzi', href: '/inputs', icon: Database },
+  { name: 'Signal Engine', href: '/signals', icon: Radio },
   { name: 'Target Risk-On', href: '/risk-on', icon: TrendingUp },
   { name: 'Target Risk-Off', href: '/risk-off', icon: Shield },
   { name: 'Rendimenti', href: '/performance', icon: LineChart },
