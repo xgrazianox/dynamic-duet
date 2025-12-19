@@ -195,6 +195,43 @@ export interface StrategyState {
   notes?: string;
 }
 
+// Alert resolution types - indicates what action is needed
+export type AlertResolutionType = 
+  | 'NAVIGATE_ONLY'
+  | 'OPEN_TRADE_MODAL_BUY'
+  | 'OPEN_TRADE_MODAL_SELL'
+  | 'OPEN_TRADE_MODAL_CLOSE'
+  | 'OPEN_POSITION_EDIT'
+  | 'OPEN_SETTINGS'
+  | 'OPEN_SIGNALS_VIEW'
+  | 'OPEN_PRICE_UPDATE'
+  | 'OPEN_THEME_SELECTOR';
+
+// Alert status
+export type AlertStatus = 'OPEN' | 'RESOLVED';
+
+// Target page for navigation
+export type AlertTargetPage = 'PORTFOLIO' | 'SIGNALS' | 'INPUTS' | 'SETTINGS' | 'ALERTS';
+
+// Target entity for deep-linking
+export interface AlertTargetEntity {
+  instrumentId?: string;
+  sleeveKey?: string;
+  rowId?: string;
+  themeSlot?: 'THEME1' | 'THEME2';
+  fieldToFocus?: string;
+  panel?: string;
+  month?: string;
+}
+
+// Prefill payload for modals
+export interface AlertPrefillPayload {
+  suggestedAmountEur?: number;
+  suggestedQuantity?: number;
+  suggestedAction?: 'BUY' | 'SELL' | 'CLOSE' | 'EDIT';
+  notesTemplate?: string;
+}
+
 export interface Alert {
   id: string;
   asOfDate: string;
@@ -202,6 +239,13 @@ export interface Alert {
   code: AlertCode;
   message: string;
   resolved: boolean;
+  status: AlertStatus;
+  resolutionType: AlertResolutionType;
+  targetPage: AlertTargetPage;
+  targetEntity?: AlertTargetEntity;
+  prefillPayload?: AlertPrefillPayload;
+  resolvedAt?: string;
+  resolvedBy?: string;
 }
 
 export interface TradeSuggestion {
