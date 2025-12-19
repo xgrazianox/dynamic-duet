@@ -90,17 +90,17 @@ const { currentRatio, sma10, regime } = calculateRatioAndSMA();
 
 // Mock portfolio positions (current holdings)
 export const mockPositions: PortfolioPosition[] = [
-  { id: '1', instrumentId: '1', sleeveKey: 'WORLD_CORE', asOfDate: getMonthDate(0), marketValueEur: 35200, averageBuyPrice: 82.50 },
-  { id: '2', instrumentId: '2', sleeveKey: 'WORLD_QUALITY', asOfDate: getMonthDate(0), marketValueEur: 7800, averageBuyPrice: 48.20 },
-  { id: '3', instrumentId: '3', sleeveKey: 'WORLD_VALUE', asOfDate: getMonthDate(0), marketValueEur: 7200, averageBuyPrice: 35.80 },
-  { id: '4', instrumentId: '4', sleeveKey: 'NASDAQ_AI', asOfDate: getMonthDate(0), marketValueEur: 9500, averageBuyPrice: 320.00 },
-  { id: '5', instrumentId: '5', sleeveKey: 'DEFENSE', asOfDate: getMonthDate(0), marketValueEur: 4800, averageBuyPrice: 22.50 },
-  { id: '6', instrumentId: '6', sleeveKey: 'UTILITIES_GRID', asOfDate: getMonthDate(0), marketValueEur: 4500, averageBuyPrice: 28.40 },
-  { id: '7', instrumentId: '7', sleeveKey: 'CRITICAL_METALS', asOfDate: getMonthDate(0), marketValueEur: 5800, averageBuyPrice: 38.90 },
-  { id: '8', instrumentId: '8', sleeveKey: 'URANIUM_NUCLEAR', asOfDate: getMonthDate(0), marketValueEur: 4200, averageBuyPrice: 26.30 },
-  { id: '9', instrumentId: '9', sleeveKey: 'CLEAN_ENERGY', asOfDate: getMonthDate(0), marketValueEur: 3500, averageBuyPrice: 8.50 },
-  { id: '10', instrumentId: '10', sleeveKey: 'GOLD', asOfDate: getMonthDate(0), marketValueEur: 10500, averageBuyPrice: 58.20 },
-  { id: '11', instrumentId: '11', sleeveKey: 'ESTR_CASH', asOfDate: getMonthDate(0), marketValueEur: 7000, averageBuyPrice: 100.00 },
+  { id: '1', instrumentId: '1', sleeveKey: 'WORLD_CORE', asOfDate: getMonthDate(0), marketValueEur: 35200, averageBuyPrice: 82.50, quantity: 420, lastPrice: 83.81 },
+  { id: '2', instrumentId: '2', sleeveKey: 'WORLD_QUALITY', asOfDate: getMonthDate(0), marketValueEur: 7800, averageBuyPrice: 48.20, quantity: 160, lastPrice: 48.75 },
+  { id: '3', instrumentId: '3', sleeveKey: 'WORLD_VALUE', asOfDate: getMonthDate(0), marketValueEur: 7200, averageBuyPrice: 35.80, quantity: 200, lastPrice: 36.00 },
+  { id: '4', instrumentId: '4', sleeveKey: 'NASDAQ_AI', asOfDate: getMonthDate(0), marketValueEur: 9500, averageBuyPrice: 320.00, quantity: 30, lastPrice: 316.67 },
+  { id: '5', instrumentId: '5', sleeveKey: 'DEFENSE', asOfDate: getMonthDate(0), marketValueEur: 4800, averageBuyPrice: 22.50, quantity: 210, lastPrice: 22.86 },
+  { id: '6', instrumentId: '6', sleeveKey: 'UTILITIES_GRID', asOfDate: getMonthDate(0), marketValueEur: 4500, averageBuyPrice: 28.40, quantity: 155, lastPrice: 29.03 },
+  { id: '7', instrumentId: '7', sleeveKey: 'CRITICAL_METALS', asOfDate: getMonthDate(0), marketValueEur: 5800, averageBuyPrice: 38.90, quantity: 145, lastPrice: 40.00 },
+  { id: '8', instrumentId: '8', sleeveKey: 'URANIUM_NUCLEAR', asOfDate: getMonthDate(0), marketValueEur: 4200, averageBuyPrice: 26.30, quantity: 158, lastPrice: 26.58 },
+  { id: '9', instrumentId: '9', sleeveKey: 'CLEAN_ENERGY', asOfDate: getMonthDate(0), marketValueEur: 3500, averageBuyPrice: 8.50, quantity: 350, lastPrice: 10.00 },
+  { id: '10', instrumentId: '10', sleeveKey: 'GOLD', asOfDate: getMonthDate(0), marketValueEur: 10500, averageBuyPrice: 58.20, quantity: 180, lastPrice: 58.33 },
+  { id: '11', instrumentId: '11', sleeveKey: 'ESTR_CASH', asOfDate: getMonthDate(0), marketValueEur: 7000, averageBuyPrice: 100.00, quantity: 70, lastPrice: 100.00 },
 ];
 
 // Target allocations RISK-ON
