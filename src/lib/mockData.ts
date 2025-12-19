@@ -7,7 +7,9 @@ import {
   Alert, 
   TradeSuggestion,
   StrategyConfig,
-  Regime
+  Regime,
+  Transaction,
+  ClosedPosition
 } from '@/types/portfolio';
 
 // Generate 24 months of mock price data
@@ -24,6 +26,12 @@ const getMonthDate = (monthsAgo: number): string => {
   const date = new Date();
   date.setMonth(date.getMonth() - monthsAgo);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
+};
+
+const getDateString = (daysAgo: number): string => {
+  const date = new Date();
+  date.setDate(date.getDate() - daysAgo);
+  return date.toISOString().split('T')[0];
 };
 
 // Mock instruments
@@ -82,17 +90,17 @@ const { currentRatio, sma10, regime } = calculateRatioAndSMA();
 
 // Mock portfolio positions (current holdings)
 export const mockPositions: PortfolioPosition[] = [
-  { id: '1', instrumentId: '1', sleeveKey: 'WORLD_CORE', asOfDate: getMonthDate(0), marketValueEur: 35200 },
-  { id: '2', instrumentId: '2', sleeveKey: 'WORLD_QUALITY', asOfDate: getMonthDate(0), marketValueEur: 7800 },
-  { id: '3', instrumentId: '3', sleeveKey: 'WORLD_VALUE', asOfDate: getMonthDate(0), marketValueEur: 7200 },
-  { id: '4', instrumentId: '4', sleeveKey: 'NASDAQ_AI', asOfDate: getMonthDate(0), marketValueEur: 9500 },
-  { id: '5', instrumentId: '5', sleeveKey: 'DEFENSE', asOfDate: getMonthDate(0), marketValueEur: 4800 },
-  { id: '6', instrumentId: '6', sleeveKey: 'UTILITIES_GRID', asOfDate: getMonthDate(0), marketValueEur: 4500 },
-  { id: '7', instrumentId: '7', sleeveKey: 'CRITICAL_METALS', asOfDate: getMonthDate(0), marketValueEur: 5800 },
-  { id: '8', instrumentId: '8', sleeveKey: 'URANIUM_NUCLEAR', asOfDate: getMonthDate(0), marketValueEur: 4200 },
-  { id: '9', instrumentId: '9', sleeveKey: 'CLEAN_ENERGY', asOfDate: getMonthDate(0), marketValueEur: 3500 },
-  { id: '10', instrumentId: '10', sleeveKey: 'GOLD', asOfDate: getMonthDate(0), marketValueEur: 10500 },
-  { id: '11', instrumentId: '11', sleeveKey: 'ESTR_CASH', asOfDate: getMonthDate(0), marketValueEur: 7000 },
+  { id: '1', instrumentId: '1', sleeveKey: 'WORLD_CORE', asOfDate: getMonthDate(0), marketValueEur: 35200, averageBuyPrice: 82.50 },
+  { id: '2', instrumentId: '2', sleeveKey: 'WORLD_QUALITY', asOfDate: getMonthDate(0), marketValueEur: 7800, averageBuyPrice: 48.20 },
+  { id: '3', instrumentId: '3', sleeveKey: 'WORLD_VALUE', asOfDate: getMonthDate(0), marketValueEur: 7200, averageBuyPrice: 35.80 },
+  { id: '4', instrumentId: '4', sleeveKey: 'NASDAQ_AI', asOfDate: getMonthDate(0), marketValueEur: 9500, averageBuyPrice: 320.00 },
+  { id: '5', instrumentId: '5', sleeveKey: 'DEFENSE', asOfDate: getMonthDate(0), marketValueEur: 4800, averageBuyPrice: 22.50 },
+  { id: '6', instrumentId: '6', sleeveKey: 'UTILITIES_GRID', asOfDate: getMonthDate(0), marketValueEur: 4500, averageBuyPrice: 28.40 },
+  { id: '7', instrumentId: '7', sleeveKey: 'CRITICAL_METALS', asOfDate: getMonthDate(0), marketValueEur: 5800, averageBuyPrice: 38.90 },
+  { id: '8', instrumentId: '8', sleeveKey: 'URANIUM_NUCLEAR', asOfDate: getMonthDate(0), marketValueEur: 4200, averageBuyPrice: 26.30 },
+  { id: '9', instrumentId: '9', sleeveKey: 'CLEAN_ENERGY', asOfDate: getMonthDate(0), marketValueEur: 3500, averageBuyPrice: 8.50 },
+  { id: '10', instrumentId: '10', sleeveKey: 'GOLD', asOfDate: getMonthDate(0), marketValueEur: 10500, averageBuyPrice: 58.20 },
+  { id: '11', instrumentId: '11', sleeveKey: 'ESTR_CASH', asOfDate: getMonthDate(0), marketValueEur: 7000, averageBuyPrice: 100.00 },
 ];
 
 // Target allocations RISK-ON
@@ -164,6 +172,66 @@ export const defaultStrategyConfig: StrategyConfig = {
   tradeRoundingAmount: 50,
 };
 
+// Mock transactions
+export const mockTransactions: Transaction[] = [
+  { id: 't1', instrumentId: '1', sleeveKey: 'WORLD_CORE', type: 'BUY', date: getDateString(180), quantity: 200, pricePerUnit: 80.50, totalValueEur: 16100, createdAt: new Date().toISOString() },
+  { id: 't2', instrumentId: '1', sleeveKey: 'WORLD_CORE', type: 'BUY', date: getDateString(90), quantity: 220, pricePerUnit: 84.50, totalValueEur: 18590, createdAt: new Date().toISOString() },
+  { id: 't3', instrumentId: '4', sleeveKey: 'NASDAQ_AI', type: 'BUY', date: getDateString(150), quantity: 30, pricePerUnit: 305.00, totalValueEur: 9150, createdAt: new Date().toISOString() },
+  { id: 't4', instrumentId: '10', sleeveKey: 'GOLD', type: 'BUY', date: getDateString(200), quantity: 100, pricePerUnit: 52.00, totalValueEur: 5200, createdAt: new Date().toISOString() },
+  { id: 't5', instrumentId: '10', sleeveKey: 'GOLD', type: 'BUY', date: getDateString(60), quantity: 80, pricePerUnit: 58.75, totalValueEur: 4700, createdAt: new Date().toISOString() },
+  { id: 't6', instrumentId: '9', sleeveKey: 'CLEAN_ENERGY', type: 'BUY', date: getDateString(120), quantity: 500, pricePerUnit: 9.20, totalValueEur: 4600, createdAt: new Date().toISOString() },
+  { id: 't7', instrumentId: '9', sleeveKey: 'CLEAN_ENERGY', type: 'SELL', date: getDateString(30), quantity: 150, pricePerUnit: 7.80, totalValueEur: 1170, createdAt: new Date().toISOString() },
+];
+
+// Mock closed positions (P&L)
+export const mockClosedPositions: ClosedPosition[] = [
+  { 
+    id: 'cp1', 
+    instrumentId: '9', 
+    sleeveKey: 'CLEAN_ENERGY', 
+    buyDate: getDateString(120), 
+    sellDate: getDateString(30), 
+    buyPrice: 9.20, 
+    sellPrice: 7.80, 
+    quantity: 150, 
+    investedAmount: 1380, 
+    soldAmount: 1170, 
+    profitLossEur: -210, 
+    profitLossPercent: -15.22, 
+    holdingDays: 90 
+  },
+  { 
+    id: 'cp2', 
+    instrumentId: '5', 
+    sleeveKey: 'DEFENSE', 
+    buyDate: getDateString(300), 
+    sellDate: getDateString(100), 
+    buyPrice: 18.50, 
+    sellPrice: 24.20, 
+    quantity: 100, 
+    investedAmount: 1850, 
+    soldAmount: 2420, 
+    profitLossEur: 570, 
+    profitLossPercent: 30.81, 
+    holdingDays: 200 
+  },
+  { 
+    id: 'cp3', 
+    instrumentId: '7', 
+    sleeveKey: 'CRITICAL_METALS', 
+    buyDate: getDateString(250), 
+    sellDate: getDateString(80), 
+    buyPrice: 32.00, 
+    sellPrice: 41.50, 
+    quantity: 50, 
+    investedAmount: 1600, 
+    soldAmount: 2075, 
+    profitLossEur: 475, 
+    profitLossPercent: 29.69, 
+    holdingDays: 170 
+  },
+];
+
 // Helper to calculate trade suggestions
 export const calculateTradeSuggestions = (
   positions: PortfolioPosition[],
@@ -212,3 +280,22 @@ export const ratioHistory = msciPrices.map((msci, i) => ({
     ? Math.round((msciPrices.slice(i - 9, i + 1).reduce((a, b, j) => a + b / goldPrices[i - 9 + j], 0) / 10) * 1000) / 1000
     : null,
 }));
+
+// Helper to calculate P&L summary
+export const calculatePLSummary = (closedPositions: ClosedPosition[]) => {
+  const totalPL = closedPositions.reduce((sum, cp) => sum + cp.profitLossEur, 0);
+  const totalInvested = closedPositions.reduce((sum, cp) => sum + cp.investedAmount, 0);
+  const winningTrades = closedPositions.filter(cp => cp.profitLossEur > 0);
+  const losingTrades = closedPositions.filter(cp => cp.profitLossEur <= 0);
+  
+  return {
+    totalPL,
+    totalInvested,
+    totalPLPercent: totalInvested > 0 ? (totalPL / totalInvested) * 100 : 0,
+    winningTrades: winningTrades.length,
+    losingTrades: losingTrades.length,
+    winRate: closedPositions.length > 0 ? (winningTrades.length / closedPositions.length) * 100 : 0,
+    avgWin: winningTrades.length > 0 ? winningTrades.reduce((sum, t) => sum + t.profitLossEur, 0) / winningTrades.length : 0,
+    avgLoss: losingTrades.length > 0 ? losingTrades.reduce((sum, t) => sum + t.profitLossEur, 0) / losingTrades.length : 0,
+  };
+};

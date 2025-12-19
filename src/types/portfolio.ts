@@ -19,6 +19,8 @@ export type AlertCode =
 
 export type PriceSource = 'AUTO_API' | 'MANUAL';
 
+export type TransactionType = 'BUY' | 'SELL';
+
 export interface Instrument {
   id: string;
   name: string;
@@ -48,6 +50,7 @@ export interface PortfolioPosition {
   asOfDate: string;
   quantity?: number;
   marketValueEur: number;
+  averageBuyPrice?: number;
   note?: string;
 }
 
@@ -110,6 +113,38 @@ export interface SleeveInfo {
   name: string;
   category: SleeveCategory;
   description?: string;
+}
+
+// Transaction for buy/sell operations
+export interface Transaction {
+  id: string;
+  instrumentId: string;
+  sleeveKey: string;
+  type: TransactionType;
+  date: string;
+  quantity: number;
+  pricePerUnit: number;
+  totalValueEur: number;
+  fees?: number;
+  notes?: string;
+  createdAt: string;
+}
+
+// Closed position for P&L tracking
+export interface ClosedPosition {
+  id: string;
+  instrumentId: string;
+  sleeveKey: string;
+  buyDate: string;
+  sellDate: string;
+  buyPrice: number;
+  sellPrice: number;
+  quantity: number;
+  investedAmount: number;
+  soldAmount: number;
+  profitLossEur: number;
+  profitLossPercent: number;
+  holdingDays: number;
 }
 
 // Sleeve definitions

@@ -6,7 +6,8 @@ import {
   Shield, 
   AlertTriangle, 
   Settings,
-  TrendingUp
+  TrendingUp,
+  LineChart
 } from 'lucide-react';
 
 const navigation = [
@@ -14,6 +15,7 @@ const navigation = [
   { name: 'Dati & Prezzi', href: '/inputs', icon: Database },
   { name: 'Target Risk-On', href: '/risk-on', icon: TrendingUp },
   { name: 'Target Risk-Off', href: '/risk-off', icon: Shield },
+  { name: 'Rendimenti', href: '/performance', icon: LineChart },
   { name: 'Regole & Alert', href: '/alerts', icon: AlertTriangle },
   { name: 'Impostazioni', href: '/settings', icon: Settings },
 ];
