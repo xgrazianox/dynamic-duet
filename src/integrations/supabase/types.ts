@@ -219,6 +219,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "operations_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments_v"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "operations_portfolio_id_fkey"
             columns: ["portfolio_id"]
             isOneToOne: false
@@ -230,6 +237,13 @@ export type Database = {
             columns: ["reversal_of_operation_id"]
             isOneToOne: true
             referencedRelation: "operations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_reversal_of_operation_id_fkey"
+            columns: ["reversal_of_operation_id"]
+            isOneToOne: true
+            referencedRelation: "operations_v"
             referencedColumns: ["id"]
           },
         ]
@@ -299,10 +313,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "psettings_gold_fk"
+            columns: ["gold_instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments_v"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "psettings_msci_fk"
             columns: ["msci_instrument_id"]
             isOneToOne: false
             referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "psettings_msci_fk"
+            columns: ["msci_instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments_v"
             referencedColumns: ["id"]
           },
         ]
@@ -368,6 +396,13 @@ export type Database = {
             columns: ["instrument_id"]
             isOneToOne: false
             referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_points_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments_v"
             referencedColumns: ["id"]
           },
         ]
@@ -462,6 +497,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "target_allocations_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments_v"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "target_allocations_target_set_id_fkey"
             columns: ["target_set_id"]
             isOneToOne: false
@@ -510,7 +552,255 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      fx_rates_v: {
+        Row: {
+          currency: Database["public"]["Enums"]["currency_code"] | null
+          eur_per_unit: string | null
+          portfolio_id: string | null
+          rate_date: string | null
+        }
+        Insert: {
+          currency?: Database["public"]["Enums"]["currency_code"] | null
+          eur_per_unit?: never
+          portfolio_id?: string | null
+          rate_date?: string | null
+        }
+        Update: {
+          currency?: Database["public"]["Enums"]["currency_code"] | null
+          eur_per_unit?: never
+          portfolio_id?: string | null
+          rate_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fx_rates_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "portfolios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instruments_v: {
+        Row: {
+          currency: Database["public"]["Enums"]["currency_code"] | null
+          id: string | null
+          instrument_type: Database["public"]["Enums"]["instrument_type"] | null
+          name: string | null
+          portfolio_id: string | null
+          quantity_step: string | null
+          regime_class: Database["public"]["Enums"]["regime_class"] | null
+          sleeve: Database["public"]["Enums"]["sleeve"] | null
+          ticker: string | null
+        }
+        Insert: {
+          currency?: Database["public"]["Enums"]["currency_code"] | null
+          id?: string | null
+          instrument_type?:
+            | Database["public"]["Enums"]["instrument_type"]
+            | null
+          name?: string | null
+          portfolio_id?: string | null
+          quantity_step?: never
+          regime_class?: Database["public"]["Enums"]["regime_class"] | null
+          sleeve?: Database["public"]["Enums"]["sleeve"] | null
+          ticker?: string | null
+        }
+        Update: {
+          currency?: Database["public"]["Enums"]["currency_code"] | null
+          id?: string | null
+          instrument_type?:
+            | Database["public"]["Enums"]["instrument_type"]
+            | null
+          name?: string | null
+          portfolio_id?: string | null
+          quantity_step?: never
+          regime_class?: Database["public"]["Enums"]["regime_class"] | null
+          sleeve?: Database["public"]["Enums"]["sleeve"] | null
+          ticker?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instruments_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "portfolios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operations_v: {
+        Row: {
+          currency: Database["public"]["Enums"]["currency_code"] | null
+          effective_date: string | null
+          fees_eur: string | null
+          fx_eur_per_unit: string | null
+          gross_amount_eur: string | null
+          id: string | null
+          instrument_id: string | null
+          notes: string | null
+          op_type: Database["public"]["Enums"]["op_type"] | null
+          opening_cost_eur: string | null
+          portfolio_id: string | null
+          price_ccy: string | null
+          quantity: string | null
+          recorded_at: string | null
+          reversal_of_operation_id: string | null
+          seq: string | null
+          source_batch_id: string | null
+        }
+        Insert: {
+          currency?: Database["public"]["Enums"]["currency_code"] | null
+          effective_date?: string | null
+          fees_eur?: never
+          fx_eur_per_unit?: never
+          gross_amount_eur?: never
+          id?: string | null
+          instrument_id?: string | null
+          notes?: string | null
+          op_type?: Database["public"]["Enums"]["op_type"] | null
+          opening_cost_eur?: never
+          portfolio_id?: string | null
+          price_ccy?: never
+          quantity?: never
+          recorded_at?: string | null
+          reversal_of_operation_id?: string | null
+          seq?: never
+          source_batch_id?: string | null
+        }
+        Update: {
+          currency?: Database["public"]["Enums"]["currency_code"] | null
+          effective_date?: string | null
+          fees_eur?: never
+          fx_eur_per_unit?: never
+          gross_amount_eur?: never
+          id?: string | null
+          instrument_id?: string | null
+          notes?: string | null
+          op_type?: Database["public"]["Enums"]["op_type"] | null
+          opening_cost_eur?: never
+          portfolio_id?: string | null
+          price_ccy?: never
+          quantity?: never
+          recorded_at?: string | null
+          reversal_of_operation_id?: string | null
+          seq?: never
+          source_batch_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operations_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "portfolios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_reversal_of_operation_id_fkey"
+            columns: ["reversal_of_operation_id"]
+            isOneToOne: true
+            referencedRelation: "operations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_reversal_of_operation_id_fkey"
+            columns: ["reversal_of_operation_id"]
+            isOneToOne: true
+            referencedRelation: "operations_v"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_points_v: {
+        Row: {
+          close_price: string | null
+          instrument_id: string | null
+          price_date: string | null
+          source: Database["public"]["Enums"]["price_source"] | null
+        }
+        Insert: {
+          close_price?: never
+          instrument_id?: string | null
+          price_date?: string | null
+          source?: Database["public"]["Enums"]["price_source"] | null
+        }
+        Update: {
+          close_price?: never
+          instrument_id?: string | null
+          price_date?: string | null
+          source?: Database["public"]["Enums"]["price_source"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_points_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_points_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments_v"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      target_allocations_v: {
+        Row: {
+          instrument_id: string | null
+          target_set_id: string | null
+          weight: string | null
+        }
+        Insert: {
+          instrument_id?: string | null
+          target_set_id?: string | null
+          weight?: never
+        }
+        Update: {
+          instrument_id?: string | null
+          target_set_id?: string | null
+          weight?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "target_allocations_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "target_allocations_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "target_allocations_target_set_id_fkey"
+            columns: ["target_set_id"]
+            isOneToOne: false
+            referencedRelation: "target_sets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       _idem_begin: {
