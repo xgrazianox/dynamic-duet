@@ -13,14 +13,42 @@ import { mockClosedPositions, calculatePLSummary } from '@/lib/mockData';
 import { useAppState } from '@/contexts/AppStateContext';
 import { TransactionForm } from '@/components/transactions/TransactionForm';
 import { TransactionsHistory } from '@/components/transactions/TransactionsHistory';
-import { SLEEVES, Transaction } from '@/types/portfolio';
-import { useState } from 'react';
+import { SLEEVES, Transaction, ClosedPosition } from '@/types/portfolio';
+import { useMemo, useState } from 'react';
 
 export default function PerformancePage() {
-  const { transactions, setTransactions, instruments } = useAppState();
+  const { transactions, setTransactions, instruments, positions } = useAppState();
   const [closedPositions] = useState(mockClosedPositions);
-  
-  const summary = calculatePLSummary(closedPositions);
+
+  // Derive additional closed positions from real SELL/CLOSE transactions.
+  const derivedClosed: ClosedPosition[] = useMemo(() => {
+    return transactions
+      .filter(tx => tx.type === 'SELL' || tx.type === 'CLOSE')
+      .map(tx => {
+        const pos = positions.find(p => p.instrumentId === tx.instrumentId);
+        const buyPrice = pos?.averageBuyPrice ?? tx.pricePerUnit;
+        const invested = buyPrice * tx.quantity;
+        const sold = tx.pricePerUnit * tx.quantity;
+        return {
+          id: `derived-${tx.id}`,
+          instrumentId: tx.instrumentId,
+          sleeveKey: tx.sleeveKey,
+          buyDate: tx.date,
+          sellDate: tx.date,
+          buyPrice,
+          sellPrice: tx.pricePerUnit,
+          quantity: tx.quantity,
+          investedAmount: invested,
+          soldAmount: sold,
+          profitLossEur: sold - invested,
+          profitLossPercent: invested > 0 ? ((sold - invested) / invested) * 100 : 0,
+          holdingDays: 0,
+        };
+      });
+  }, [transactions, positions]);
+
+  const allClosed = useMemo(() => [...closedPositions, ...derivedClosed], [closedPositions, derivedClosed]);
+  const summary = calculatePLSummary(allClosed);
 
   const handleNewTransaction = (tx: Omit<Transaction, 'id' | 'createdAt'>) => {
     const newTransaction: Transaction = {
@@ -115,7 +143,7 @@ export default function PerformancePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-mono text-risk-off">
-              €{summary.avgLoss.toFixed(2)}
+              {summary.avgLoss < 0 ? '-' : ''}€{Math.abs(summary.avgLoss).toFixed(2)}
             </div>
             <p className="text-sm text-muted-foreground">
               per trade perdente
@@ -129,7 +157,7 @@ export default function PerformancePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             Posizioni Chiuse
-            <Badge variant="outline">{closedPositions.length}</Badge>
+            <Badge variant="outline">{allClosed.length}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -148,7 +176,7 @@ export default function PerformancePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {closedPositions.map((cp) => (
+              {allClosed.map((cp) => (
                 <TableRow key={cp.id}>
                   <TableCell className="font-medium">
                     {SLEEVES[cp.sleeveKey]?.name || cp.sleeveKey}
@@ -194,7 +222,7 @@ export default function PerformancePage() {
               ))}
             </TableBody>
           </Table>
-          {closedPositions.length === 0 && (
+          {allClosed.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               Nessuna posizione chiusa
             </div>

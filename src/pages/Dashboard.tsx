@@ -13,15 +13,17 @@ import {
   mockTargetsRiskOn,
   mockTargetsRiskOff,
 } from '@/lib/mockData';
-import { Transaction } from '@/types/portfolio';
-import { useMemo } from 'react';
+import { PortfolioPosition, Transaction } from '@/types/portfolio';
+import { useMemo, useState } from 'react';
 import { useSignalEngine } from '@/contexts/SignalEngineContext';
 import { useAppState } from '@/contexts/AppStateContext';
 import { toast } from 'sonner';
 
 export default function Dashboard() {
-  const { positions, setPositions, instruments, alerts } = useAppState();
+  const { positions, setPositions, setTransactions, instruments, alerts } = useAppState();
   const { engineResult, finalRegime, config } = useSignalEngine();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
   const currentMonth = new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
   const safeRegime: 'RISK_ON' | 'RISK_OFF' =
     finalRegime === 'UNDETERMINED' ? 'RISK_ON' : finalRegime;
@@ -33,27 +35,75 @@ export default function Dashboard() {
   );
 
   const handleNewTransaction = (tx: Omit<Transaction, 'id' | 'createdAt'>) => {
-    // Update positions based on transaction
+    const newTx: Transaction = {
+      ...tx,
+      id: `t${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    setTransactions(prev => [...prev, newTx]);
+
     setPositions(prev => {
-      const existingIdx = prev.findIndex(p => p.sleeveKey === tx.sleeveKey);
-      if (existingIdx >= 0) {
-        const updated = [...prev];
-        if (tx.type === 'BUY') {
-          updated[existingIdx] = {
-            ...updated[existingIdx],
-            marketValueEur: updated[existingIdx].marketValueEur + tx.totalValueEur
-          };
-        } else {
-          updated[existingIdx] = {
-            ...updated[existingIdx],
-            marketValueEur: Math.max(0, updated[existingIdx].marketValueEur - tx.totalValueEur)
-          };
-        }
-        return updated;
+      const idx = prev.findIndex(p => p.sleeveKey === tx.sleeveKey && p.instrumentId === tx.instrumentId);
+      if (idx < 0) {
+        if (tx.type !== 'BUY') return prev;
+        const newPos: PortfolioPosition = {
+          id: `p${Date.now()}`,
+          instrumentId: tx.instrumentId,
+          sleeveKey: tx.sleeveKey,
+          asOfDate: tx.date,
+          quantity: tx.quantity,
+          marketValueEur: tx.totalValueEur,
+          averageBuyPrice: tx.pricePerUnit,
+          isClosed: false,
+        };
+        return [...prev, newPos];
       }
-      return prev;
+      const updated = [...prev];
+      const p = updated[idx];
+      if (tx.type === 'BUY') {
+        const oldQty = p.quantity || 0;
+        const oldCost = (p.averageBuyPrice || 0) * oldQty;
+        const newQty = oldQty + tx.quantity;
+        updated[idx] = {
+          ...p,
+          quantity: newQty,
+          marketValueEur: p.marketValueEur + tx.totalValueEur,
+          averageBuyPrice: newQty > 0 ? (oldCost + tx.totalValueEur) / newQty : p.averageBuyPrice,
+          isClosed: false,
+        };
+      } else {
+        const newQty = Math.max(0, (p.quantity || 0) - tx.quantity);
+        const newVal = Math.max(0, p.marketValueEur - tx.totalValueEur);
+        updated[idx] = {
+          ...p,
+          quantity: newQty,
+          marketValueEur: newVal,
+          isClosed: newQty <= 0 || newVal <= 0,
+        };
+      }
+      return updated;
     });
+
+    const existed = positions.some(p => p.sleeveKey === tx.sleeveKey && p.instrumentId === tx.instrumentId);
+    if (tx.type !== 'BUY' && !existed) {
+      toast.error('Nessuna posizione esistente da vendere per questo strumento');
+      return;
+    }
     toast.success(`${tx.type === 'BUY' ? 'Acquisto' : 'Vendita'} registrato - Portafoglio aggiornato`);
+  };
+
+  const handleRefreshPrices = async () => {
+    setIsRefreshing(true);
+    await new Promise(r => setTimeout(r, 1500));
+    setIsRefreshing(false);
+    toast.success('Quotazioni aggiornate');
+  };
+
+  const handleRecalculate = async () => {
+    setIsRecalculating(true);
+    await new Promise(r => setTimeout(r, 600));
+    setIsRecalculating(false);
+    toast.success(`Trade suggeriti ricalcolati (${tradeSuggestions.length} operazioni)`);
   };
 
   return (
@@ -78,11 +128,11 @@ export default function Dashboard() {
             onSubmit={handleNewTransaction}
             defaultType="SELL"
           />
-          <Button variant="outline">
-            <RefreshCw className="h-4 w-4" />
+          <Button variant="outline" onClick={handleRefreshPrices} disabled={isRefreshing}>
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             Aggiorna Quotazioni
           </Button>
-          <Button>
+          <Button onClick={handleRecalculate} disabled={isRecalculating}>
             Ricalcola
           </Button>
         </div>

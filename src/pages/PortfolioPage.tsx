@@ -64,7 +64,7 @@ interface EnrichedPosition {
 export default function PortfolioPage() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { positions, setPositions, instruments, setInstruments, transactions, setTransactions, alerts } = useAppState();
+  const { positions, setPositions, instruments, setInstruments, transactions, setTransactions, alerts, resolveAlert } = useAppState();
   const { finalRegime } = useSignalEngine();
   const [showOnlyActive, setShowOnlyActive] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -80,6 +80,7 @@ export default function PortfolioPage() {
   
   // Deep link prefill values
   const [prefillAmount, setPrefillAmount] = useState<number | undefined>(undefined);
+  const [pendingAlertId, setPendingAlertId] = useState<string | null>(null);
   
   // Ref for highlighted row
   const highlightedRowRef = useRef<HTMLTableRowElement>(null);
@@ -99,7 +100,8 @@ export default function PortfolioPage() {
     return positions
       .filter(p => !showOnlyActive || !p.isClosed)
       .map(position => {
-        const instrument = instruments.find(i => i.id === position.instrumentId)!;
+        const instrument = instruments.find(i => i.id === position.instrumentId);
+        if (!instrument) return null;
         const sleeve = SLEEVES[position.sleeveKey];
         const target = targets.find(t => t.sleeveKey === position.sleeveKey);
         
@@ -132,13 +134,14 @@ export default function PortfolioPage() {
           isInTarget
         };
       })
+      .filter((x): x is EnrichedPosition => x !== null)
       .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
   }, [positions, instruments, targets, totalValue, showOnlyActive]);
 
   // Handle deep-link from alerts
   useEffect(() => {
     const deepLink = parseDeepLinkParams(searchParams);
-    if (deepLink.action || deepLink.sleeveKey || deepLink.instrumentId) {
+    if (deepLink.action || deepLink.sleeveKey || deepLink.instrumentId || deepLink.alertId) {
       let targetPosition = deepLink.instrumentId 
         ? enrichedPositions.find(ep => ep.instrument.id === deepLink.instrumentId)
         : enrichedPositions.find(ep => ep.position.sleeveKey === deepLink.sleeveKey);
@@ -152,9 +155,16 @@ export default function PortfolioPage() {
         else if (deepLink.action === 'close') setCloseModalOpen(true);
         setTimeout(() => setHighlightedPositionId(null), 3000);
       }
+      if (deepLink.alertId) {
+        if (!deepLink.action) {
+          resolveAlert(deepLink.alertId);
+        } else {
+          setPendingAlertId(deepLink.alertId);
+        }
+      }
       setSearchParams({});
     }
-  }, [searchParams, enrichedPositions, setSearchParams]);
+  }, [searchParams, enrichedPositions, setSearchParams, resolveAlert]);
 
   const handleRefreshPrices = async () => {
     setIsRefreshing(true);
@@ -229,6 +239,7 @@ export default function PortfolioPage() {
       title: "Posizione aumentata",
       description: `Aggiunto €${amount.toLocaleString('it-IT')} a ${selectedPosition.instrument.name}`
     });
+    if (pendingAlertId) { resolveAlert(pendingAlertId); setPendingAlertId(null); }
   };
 
   const handleConfirmDecrease = (amount: number, quantity: number, price: number, notes: string, date: string) => {
@@ -273,6 +284,7 @@ export default function PortfolioPage() {
       title: "Posizione ridotta",
       description: `Venduto €${amount.toLocaleString('it-IT')} di ${selectedPosition.instrument.name}`
     });
+    if (pendingAlertId) { resolveAlert(pendingAlertId); setPendingAlertId(null); }
   };
 
   const handleConfirmClose = (notes: string, date: string) => {
@@ -305,6 +317,7 @@ export default function PortfolioPage() {
       title: "Posizione chiusa",
       description: `Chiusa posizione su ${selectedPosition.instrument.name}`
     });
+    if (pendingAlertId) { resolveAlert(pendingAlertId); setPendingAlertId(null); }
   };
 
   const handleAddInstrument = (instrument: Instrument, position?: { quantity: number; price: number; date: string; notes: string }) => {

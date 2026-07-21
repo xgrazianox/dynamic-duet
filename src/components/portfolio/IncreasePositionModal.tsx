@@ -50,25 +50,39 @@ export function IncreasePositionModal({ open, onOpenChange, position, onConfirm 
     if (position) {
       setPrice(position.lastPrice.toFixed(2));
       if (useSuggested && position.suggestedTradeEur > 0) {
-        setAmount(position.suggestedTradeEur.toString());
-        setQuantity(Math.floor(position.suggestedTradeEur / position.lastPrice).toString());
+        const qty = Math.floor(position.suggestedTradeEur / position.lastPrice);
+        setQuantity(qty.toString());
+        setAmount((qty * position.lastPrice).toFixed(2));
       }
     }
   }, [position, useSuggested]);
 
-  useEffect(() => {
-    if (amount && price && parseFloat(price) > 0) {
-      const qty = Math.floor(parseFloat(amount) / parseFloat(price));
-      setQuantity(qty.toString());
+  const handleAmountChange = (v: string) => {
+    setAmount(v);
+    const p = parseFloat(price);
+    const a = parseFloat(v);
+    if (!isNaN(a) && !isNaN(p) && p > 0) {
+      setQuantity(Math.floor(a / p).toString());
     }
-  }, [amount, price]);
+  };
 
-  useEffect(() => {
-    if (quantity && price && parseFloat(price) > 0) {
-      const amt = parseFloat(quantity) * parseFloat(price);
-      setAmount(amt.toFixed(2));
+  const handleQuantityChange = (v: string) => {
+    setQuantity(v);
+    const p = parseFloat(price);
+    const q = parseFloat(v);
+    if (!isNaN(q) && !isNaN(p) && p > 0) {
+      setAmount((q * p).toFixed(2));
     }
-  }, [quantity]);
+  };
+
+  const handlePriceChange = (v: string) => {
+    setPrice(v);
+    const p = parseFloat(v);
+    const a = parseFloat(amount);
+    if (!isNaN(a) && !isNaN(p) && p > 0) {
+      setQuantity(Math.floor(a / p).toString());
+    }
+  };
 
   const handleConfirm = () => {
     const amountNum = parseFloat(amount) || 0;
@@ -128,7 +142,7 @@ export function IncreasePositionModal({ open, onOpenChange, position, onConfirm 
                 id="amount"
                 type="number"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => handleAmountChange(e.target.value)}
                 placeholder="0.00"
               />
             </div>
@@ -138,7 +152,7 @@ export function IncreasePositionModal({ open, onOpenChange, position, onConfirm 
                 id="quantity"
                 type="number"
                 value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
+                onChange={(e) => handleQuantityChange(e.target.value)}
                 placeholder="0"
               />
             </div>
@@ -152,7 +166,7 @@ export function IncreasePositionModal({ open, onOpenChange, position, onConfirm 
                 type="number"
                 step="0.01"
                 value={price}
-                onChange={(e) => setPrice(e.target.value)}
+                onChange={(e) => handlePriceChange(e.target.value)}
                 placeholder="0.00"
               />
             </div>
