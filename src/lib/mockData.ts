@@ -34,18 +34,21 @@ const getDateString = (daysAgo: number): string => {
 
 // Mock instruments
 export const mockInstruments: Instrument[] = [
-  { id: '1', name: 'iShares Core MSCI World', ticker: 'IWDA.AS', currency: 'EUR', category: 'CORE', sleeveKey: 'WORLD_CORE', provider: 'Yahoo Finance', isActive: true },
-  { id: '2', name: 'iShares MSCI World Quality', ticker: 'IWQU.L', currency: 'EUR', category: 'FACTOR', sleeveKey: 'WORLD_QUALITY', provider: 'Yahoo Finance', isActive: true },
-  { id: '3', name: 'iShares Edge MSCI World Value', ticker: 'IWVL.L', currency: 'EUR', category: 'FACTOR', sleeveKey: 'WORLD_VALUE', provider: 'Yahoo Finance', isActive: true },
-  { id: '4', name: 'Invesco EQQQ Nasdaq-100', ticker: 'EQQQ.L', currency: 'EUR', category: 'THEME', sleeveKey: 'NASDAQ_AI', provider: 'Yahoo Finance', isActive: true },
-  { id: '5', name: 'VanEck Defense', ticker: 'DFNS.DE', currency: 'EUR', category: 'THEME', sleeveKey: 'DEFENSE', provider: 'Yahoo Finance', isActive: true },
-  { id: '6', name: 'iShares Global Utilities', ticker: 'IUIT.L', currency: 'EUR', category: 'THEME', sleeveKey: 'UTILITIES_GRID', provider: 'Yahoo Finance', isActive: true },
-  { id: '7', name: 'Global X Copper Miners', ticker: 'COPX', currency: 'USD', category: 'THEME', sleeveKey: 'CRITICAL_METALS', provider: 'Yahoo Finance', isActive: true },
-  { id: '8', name: 'Global X Uranium', ticker: 'URA', currency: 'USD', category: 'THEME', sleeveKey: 'URANIUM_NUCLEAR', provider: 'Yahoo Finance', isActive: true },
-  { id: '9', name: 'iShares Global Clean Energy', ticker: 'INRG.L', currency: 'EUR', category: 'THEME', sleeveKey: 'CLEAN_ENERGY', provider: 'Yahoo Finance', isActive: true },
-  { id: '10', name: 'Xetra-Gold ETC', ticker: '4GLD.DE', currency: 'EUR', category: 'HEDGE', sleeveKey: 'GOLD', provider: 'Yahoo Finance', isActive: true },
-  { id: '11', name: 'Xtrackers EUR Overnight Rate', ticker: 'XEON.DE', currency: 'EUR', category: 'CASH', sleeveKey: 'ESTR_CASH', provider: 'Yahoo Finance', isActive: true },
+  { id: '1', name: 'iShares Core MSCI World', ticker: 'IWDA.AS', currency: 'EUR', category: 'CORE', sleeveKey: 'WORLD_CORE', provider: 'yahoo', isActive: true },
+  { id: '2', name: 'iShares MSCI World Quality', ticker: 'IWQU.L', currency: 'EUR', category: 'FACTOR', sleeveKey: 'WORLD_QUALITY', provider: 'yahoo', isActive: true },
+  { id: '3', name: 'iShares Edge MSCI World Value', ticker: 'IWVL.L', currency: 'EUR', category: 'FACTOR', sleeveKey: 'WORLD_VALUE', provider: 'yahoo', isActive: true },
+  { id: '4', name: 'Invesco EQQQ Nasdaq-100', ticker: 'EQQQ.L', currency: 'EUR', category: 'THEME', sleeveKey: 'NASDAQ_AI', provider: 'yahoo', isActive: true },
+  { id: '5', name: 'VanEck Defense', ticker: 'DFNS.DE', currency: 'EUR', category: 'THEME', sleeveKey: 'DEFENSE', provider: 'yahoo', isActive: true },
+  { id: '6', name: 'iShares Global Utilities', ticker: 'IUIT.L', currency: 'EUR', category: 'THEME', sleeveKey: 'UTILITIES_GRID', provider: 'yahoo', isActive: true },
+  { id: '7', name: 'Global X Copper Miners', ticker: 'COPX', currency: 'USD', category: 'THEME', sleeveKey: 'CRITICAL_METALS', provider: 'yahoo', isActive: true },
+  { id: '8', name: 'Global X Uranium', ticker: 'URA', currency: 'USD', category: 'THEME', sleeveKey: 'URANIUM_NUCLEAR', provider: 'yahoo', isActive: true },
+  { id: '9', name: 'iShares Global Clean Energy', ticker: 'INRG.L', currency: 'EUR', category: 'THEME', sleeveKey: 'CLEAN_ENERGY', provider: 'yahoo', isActive: true },
+  { id: '10', name: 'Xetra-Gold ETC', ticker: '4GLD.DE', currency: 'EUR', category: 'HEDGE', sleeveKey: 'GOLD', provider: 'yahoo', isActive: true },
+  { id: '11', name: 'Xtrackers EUR Overnight Rate', ticker: 'XEON.DE', currency: 'EUR', category: 'CASH', sleeveKey: 'ESTR_CASH', provider: 'yahoo', isActive: true },
 ];
+
+// FX rate EUR/USD used to convert USD-denominated prices into EUR portfolio values.
+export const FX_EURUSD = 1.08;
 
 // Price history — MSCI (id '1') and Gold (id '10') use the SHARED deterministic
 // series that also feeds the Signal Engine; other instruments use their own
@@ -153,19 +156,6 @@ export const mockAlerts: Alert[] = [
     targetEntity: { panel: 'decision' }
   },
   { 
-    id: '2', 
-    asOfDate: getMonthDate(0), 
-    severity: 'WARNING', 
-    code: 'REBALANCE_NEEDED', 
-    message: 'Deviazione dal target >5% rilevata su alcuni sleeve. Ribilanciamento consigliato.',
-    resolved: false,
-    status: 'OPEN',
-    resolutionType: 'NAVIGATE_ONLY',
-    targetPage: 'PORTFOLIO',
-    targetEntity: { sleeveKey: 'WORLD_CORE' },
-    prefillPayload: { suggestedAmountEur: 500, suggestedAction: 'BUY' }
-  },
-  { 
     id: '3', 
     asOfDate: getMonthDate(0), 
     severity: 'CRITICAL', 
@@ -176,19 +166,6 @@ export const mockAlerts: Alert[] = [
     resolutionType: 'OPEN_PRICE_UPDATE',
     targetPage: 'INPUTS',
     targetEntity: { instrumentId: '7', fieldToFocus: 'prices' }
-  },
-  { 
-    id: '4', 
-    asOfDate: getMonthDate(1), 
-    severity: 'WARNING', 
-    code: 'THEME_OVERWEIGHT_TAKE_PROFIT', 
-    message: 'DEFENSE +32% sopra target. Considera take profit.',
-    resolved: false,
-    status: 'OPEN',
-    resolutionType: 'OPEN_TRADE_MODAL_SELL',
-    targetPage: 'PORTFOLIO',
-    targetEntity: { sleeveKey: 'DEFENSE', instrumentId: '5' },
-    prefillPayload: { suggestedAmountEur: 800, suggestedAction: 'SELL' }
   },
   { 
     id: '5', 
@@ -223,6 +200,14 @@ export const mockTransactions: Transaction[] = [
   { id: 't5', instrumentId: '10', sleeveKey: 'GOLD', type: 'BUY', date: getDateString(60), quantity: 80, pricePerUnit: 58.75, totalValueEur: 4700, createdAt: new Date().toISOString() },
   { id: 't6', instrumentId: '9', sleeveKey: 'CLEAN_ENERGY', type: 'BUY', date: getDateString(120), quantity: 500, pricePerUnit: 9.20, totalValueEur: 4600, createdAt: new Date().toISOString() },
   { id: 't7', instrumentId: '9', sleeveKey: 'CLEAN_ENERGY', type: 'SELL', date: getDateString(30), quantity: 150, pricePerUnit: 7.80, totalValueEur: 1170, createdAt: new Date().toISOString() },
+  // INIT snapshots for positions without explicit BUY history (opening balances)
+  { id: 't-init-2', instrumentId: '2', sleeveKey: 'WORLD_QUALITY', type: 'INIT', date: getDateString(365), quantity: 160, pricePerUnit: 48.20, totalValueEur: 7712, notes: 'Saldo iniziale', createdAt: new Date().toISOString() },
+  { id: 't-init-3', instrumentId: '3', sleeveKey: 'WORLD_VALUE', type: 'INIT', date: getDateString(365), quantity: 200, pricePerUnit: 35.80, totalValueEur: 7160, notes: 'Saldo iniziale', createdAt: new Date().toISOString() },
+  { id: 't-init-5', instrumentId: '5', sleeveKey: 'DEFENSE', type: 'INIT', date: getDateString(365), quantity: 210, pricePerUnit: 22.50, totalValueEur: 4725, notes: 'Saldo iniziale', createdAt: new Date().toISOString() },
+  { id: 't-init-6', instrumentId: '6', sleeveKey: 'UTILITIES_GRID', type: 'INIT', date: getDateString(365), quantity: 155, pricePerUnit: 28.40, totalValueEur: 4402, notes: 'Saldo iniziale', createdAt: new Date().toISOString() },
+  { id: 't-init-7', instrumentId: '7', sleeveKey: 'CRITICAL_METALS', type: 'INIT', date: getDateString(365), quantity: 145, pricePerUnit: 38.90, totalValueEur: 5220.71, notes: 'Saldo iniziale (USD converted @1.08)', createdAt: new Date().toISOString() },
+  { id: 't-init-8', instrumentId: '8', sleeveKey: 'URANIUM_NUCLEAR', type: 'INIT', date: getDateString(365), quantity: 158, pricePerUnit: 26.30, totalValueEur: 3847.69, notes: 'Saldo iniziale (USD converted @1.08)', createdAt: new Date().toISOString() },
+  { id: 't-init-11', instrumentId: '11', sleeveKey: 'ESTR_CASH', type: 'INIT', date: getDateString(365), quantity: 70, pricePerUnit: 100.00, totalValueEur: 7000, notes: 'Saldo iniziale', createdAt: new Date().toISOString() },
 ];
 
 // Mock closed positions (P&L)
@@ -289,8 +274,10 @@ export const calculateTradeSuggestions = (
     const currentValue = position?.marketValueEur || 0;
     const currentWeight = currentValue / totalValue;
     const targetWeight = target.baseWeight;
-    const deltaWeight = targetWeight - currentWeight;
-    const suggestedTrade = deltaWeight * totalValue;
+    // Convention: delta = current − target (positive ⇒ sovrappeso).
+    const deltaWeight = currentWeight - targetWeight;
+    // Trade suggerito = riporta a target: −delta × totalValue (positivo ⇒ COMPRA).
+    const suggestedTrade = -deltaWeight * totalValue;
 
     if (Math.abs(deltaWeight) > 0.005) {
       suggestions.push({
