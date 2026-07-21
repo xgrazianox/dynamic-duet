@@ -513,7 +513,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      bootstrap_user_data: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {
       currency_code: "EUR" | "USD" | "CHF"
