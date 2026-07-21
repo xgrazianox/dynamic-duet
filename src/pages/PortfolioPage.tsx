@@ -64,7 +64,7 @@ interface EnrichedPosition {
 export default function PortfolioPage() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { positions, setPositions, instruments, setInstruments, transactions, setTransactions, alerts, resolveAlert } = useAppState();
+  const { positions, setPositions, instruments, setInstruments, transactions, setTransactions, alerts, resolveAlert, addClosedPosition } = useAppState();
   const { finalRegime } = useSignalEngine();
   const [showOnlyActive, setShowOnlyActive] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
