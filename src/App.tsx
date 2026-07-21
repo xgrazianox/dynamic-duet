@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
 import { SignalEngineProvider } from "./contexts/SignalEngineContext";
 import { AppStateProvider } from "./contexts/AppStateContext";
+import { MigrationGate } from "./components/migration/MigrationGate";
+import AuthPage from "./pages/AuthPage";
 import Index from "./pages/Index";
 import InputsPage from "./pages/InputsPage";
 import RiskOnPage from "./pages/RiskOnPage";
@@ -28,7 +30,8 @@ const App = () => (
         <AppStateProvider>
           <BrowserRouter>
           <Routes>
-            <Route element={<MainLayout />}>
+            <Route path="/auth" element={<AuthPage />} />
+            <Route element={<MigrationGate><MainLayout /></MigrationGate>}>
               <Route path="/" element={<Index />} />
               <Route path="/portfolio" element={<PortfolioPage />} />
               <Route path="/inputs" element={<InputsPage />} />
