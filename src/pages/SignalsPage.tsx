@@ -1,60 +1,19 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Radio, RefreshCw, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SignalAPanel } from '@/components/signals/SignalAPanel';
 import { SignalBPanel } from '@/components/signals/SignalBPanel';
 import { DecisionPanel } from '@/components/signals/DecisionPanel';
-import { runSignalEngine } from '@/lib/signalEngine';
-import { DecisionMode, SignalEngineConfig, defaultSignalEngineConfig } from '@/types/portfolio';
+import { DecisionMode } from '@/types/portfolio';
+import { useSignalEngine } from '@/contexts/SignalEngineContext';
 import { toast } from 'sonner';
 
-// Generate mock price data for signal engine
-const generateMockPrices = () => {
-  const months = 24;
-  const msciBase = 85;
-  const goldBase = 55;
-  
-  const msciPrices: number[] = [msciBase];
-  const goldPrices: number[] = [goldBase];
-  const dates: string[] = [];
-  
-  for (let i = 0; i < months; i++) {
-    const date = new Date();
-    date.setMonth(date.getMonth() - (months - 1 - i));
-    dates.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`);
-    
-    if (i > 0) {
-      // Add some trend and volatility
-      const msciChange = (Math.random() - 0.45) * 0.06 * msciPrices[i - 1];
-      const goldChange = (Math.random() - 0.48) * 0.04 * goldPrices[i - 1];
-      msciPrices.push(Math.max(msciPrices[i - 1] + msciChange, msciBase * 0.7));
-      goldPrices.push(Math.max(goldPrices[i - 1] + goldChange, goldBase * 0.7));
-    }
-  }
-  
-  return { msciPrices, goldPrices, dates };
-};
-
-const mockData = generateMockPrices();
-
 export default function SignalsPage() {
-  const [config, setConfig] = useState<SignalEngineConfig>(defaultSignalEngineConfig);
+  const { config, engineResult, setDecisionMode } = useSignalEngine();
   const [isRefreshing, setIsRefreshing] = useState(false);
-  
-  const engineResult = useMemo(() => {
-    return runSignalEngine(
-      mockData.msciPrices,
-      mockData.goldPrices,
-      mockData.dates,
-      config
-    );
-  }, [config]);
-  
+
   const handleModeChange = (mode: DecisionMode) => {
-    setConfig(prev => ({
-      ...prev,
-      decision: { ...prev.decision, mode }
-    }));
+    setDecisionMode(mode);
   };
   
   const handleRefresh = async () => {

@@ -1,4 +1,4 @@
-import { RefreshCw, Calendar } from 'lucide-react';
+import { RefreshCw, Calendar, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RegimeCard } from '@/components/dashboard/RegimeCard';
 import { PortfolioSummary } from '@/components/dashboard/PortfolioSummary';
@@ -9,23 +9,30 @@ import { HoldingsTable } from '@/components/dashboard/HoldingsTable';
 import { AllocationComparisonChart } from '@/components/dashboard/AllocationComparisonChart';
 import { TransactionForm } from '@/components/transactions/TransactionForm';
 import { 
-  mockStrategyState, 
   mockPositions, 
   mockAlerts, 
-  mockTradeSuggestions,
+  calculateTradeSuggestions,
   mockTargetsRiskOn,
   mockTargetsRiskOff,
   mockInstruments
 } from '@/lib/mockData';
 import { Transaction } from '@/types/portfolio';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useSignalEngine } from '@/contexts/SignalEngineContext';
 import { toast } from 'sonner';
 
 export default function Dashboard() {
   const [positions, setPositions] = useState(mockPositions);
+  const { engineResult, finalRegime, config } = useSignalEngine();
   const currentMonth = new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
-  const targets = mockStrategyState.regime === 'RISK_ON' ? mockTargetsRiskOn : mockTargetsRiskOff;
-  const safeRegime: 'RISK_ON' | 'RISK_OFF' = mockStrategyState.regime === 'UNDETERMINED' ? 'RISK_ON' : mockStrategyState.regime;
+  const safeRegime: 'RISK_ON' | 'RISK_OFF' =
+    finalRegime === 'UNDETERMINED' ? 'RISK_ON' : finalRegime;
+  const targets = safeRegime === 'RISK_ON' ? mockTargetsRiskOn : mockTargetsRiskOff;
+
+  const tradeSuggestions = useMemo(
+    () => calculateTradeSuggestions(positions, targets, safeRegime),
+    [positions, targets, safeRegime]
+  );
 
   const handleNewTransaction = (tx: Omit<Transaction, 'id' | 'createdAt'>) => {
     // Update positions based on transaction
@@ -83,12 +90,23 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Sync banner — regime derives from Signal Engine (modalità: {config.decision.mode}) */}
+      {engineResult.decision.hasConflict && (
+        <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+          <AlertTriangle className="h-4 w-4" />
+          <span>
+            Sistema A ({engineResult.signalA.currentRegime}) e Sistema B ({engineResult.signalB.currentRegime}) discordano.
+            Regime finale applicato: <strong>{finalRegime}</strong> (modalità {config.decision.mode}).
+          </span>
+        </div>
+      )}
+
       {/* Top row - Key metrics */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <RegimeCard 
-          regime={mockStrategyState.regime}
-          ratio={mockStrategyState.msciGoldRatio}
-          sma10={mockStrategyState.sma10Ratio}
+          regime={finalRegime}
+          ratio={engineResult.signalA.ratio}
+          sma10={engineResult.signalA.sma}
         />
         <PortfolioSummary positions={positions} />
         <AlertsPanel alerts={mockAlerts} />
@@ -105,7 +123,7 @@ export default function Dashboard() {
       {/* Chart and Trades */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RatioChart />
-        <TradesList trades={mockTradeSuggestions} />
+        <TradesList trades={tradeSuggestions} />
       </div>
 
       {/* Holdings Table */}
