@@ -4,9 +4,12 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceL
 
 interface SignalAPanelProps {
   result: SignalAResult;
+  smaMonths?: number;
+  confirmMonths?: number;
+  bandPct?: number;
 }
 
-export function SignalAPanel({ result }: SignalAPanelProps) {
+export function SignalAPanel({ result, smaMonths = 10, confirmMonths = 2, bandPct = 0.015 }: SignalAPanelProps) {
   const { currentRegime, rawSignal, ratio, sma, upperBand, lowerBand, confirmCount, reason, history } = result;
   
   const isRiskOn = currentRegime === 'RISK_ON';
@@ -30,7 +33,7 @@ export function SignalAPanel({ result }: SignalAPanelProps) {
             <span className="text-muted-foreground">— Doppia Conferma MSCI/Gold</span>
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Ratio vs SMA con banda anti-whipsaw
+            Ratio vs SMA({smaMonths}) con banda anti-whipsaw ±{(bandPct * 100).toFixed(1)}%
           </p>
         </div>
         
@@ -99,7 +102,7 @@ export function SignalAPanel({ result }: SignalAPanelProps) {
               strokeWidth={2}
               strokeDasharray="5 5"
               dot={false}
-              name="SMA(10)"
+              name={`SMA(${smaMonths})`}
             />
             <Line 
               type="monotone" 
@@ -120,7 +123,7 @@ export function SignalAPanel({ result }: SignalAPanelProps) {
           <p className="font-mono text-lg font-semibold">{ratio.toFixed(3)}</p>
         </div>
         <div className="p-3 rounded-lg bg-secondary">
-          <p className="text-xs text-muted-foreground">SMA(10)</p>
+          <p className="text-xs text-muted-foreground">SMA({smaMonths})</p>
           <p className="font-mono text-lg font-semibold">{sma.toFixed(3)}</p>
         </div>
         <div className="p-3 rounded-lg bg-secondary">
@@ -136,13 +139,13 @@ export function SignalAPanel({ result }: SignalAPanelProps) {
       {/* Confirmation Status */}
       <div className="flex items-center gap-3 p-4 rounded-lg bg-secondary/50 border border-border">
         <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-          confirmCount >= 2 ? 'bg-risk-on/20 text-risk-on' : 'bg-muted text-muted-foreground'
+          confirmCount >= confirmMonths ? 'bg-risk-on/20 text-risk-on' : 'bg-muted text-muted-foreground'
         }`}>
           <CheckCircle2 className="h-5 w-5" />
         </div>
         <div>
           <p className="font-medium">
-            Conferma {confirmCount}/2
+            Conferma {confirmCount}/{confirmMonths}
             <span className={`ml-2 px-2 py-0.5 text-xs rounded ${
               rawSignal === 'ON' ? 'bg-risk-on/20 text-risk-on' :
               rawSignal === 'OFF' ? 'bg-risk-off/20 text-risk-off' :

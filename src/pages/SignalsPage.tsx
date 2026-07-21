@@ -54,7 +54,7 @@ export default function SignalsPage() {
     setIsRefreshing(true);
     await new Promise(r => setTimeout(r, 1000));
     setIsRefreshing(false);
-    toast.success('Segnali aggiornati con i dati più recenti');
+    toast.success('Segnali ricalcolati con la configurazione corrente');
   };
   
   const handleExport = () => {
@@ -119,12 +119,25 @@ export default function SignalsPage() {
 
       {/* System A Panel */}
       <div ref={signalARef} className={ringClass('signalA')}>
-        <SignalAPanel result={engineResult.signalA} />
+        <SignalAPanel
+          result={engineResult.signalA}
+          smaMonths={config.signalA.smaMonths}
+          confirmMonths={config.signalA.confirmMonths}
+          bandPct={config.signalA.bandPct}
+        />
       </div>
 
       {/* System B Panel */}
       <div ref={signalBRef} className={ringClass('signalB')}>
-        <SignalBPanel result={engineResult.signalB} />
+        <SignalBPanel
+          result={engineResult.signalB}
+          confirmMonths={config.signalB.confirmMonths}
+          minVotesRequired={config.signalB.minVotesRequired}
+          b1SmaMonths={config.signalB.b1SmaMonths}
+          b2SmaMonths={config.signalB.b2SmaMonths}
+          b3VolLookback={config.signalB.b3VolLookback}
+          b3VolThreshold={config.signalB.b3VolThreshold}
+        />
       </div>
     </div>
   );
