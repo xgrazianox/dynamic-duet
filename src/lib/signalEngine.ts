@@ -152,8 +152,9 @@ export const calculateSignalB = (
 ): SignalBResult => {
   const { 
     confirmMonths, 
-    neutralHandling, 
     minVotesRequired,
+    b1SmaMonths,
+    b1BandPct,
     b2SmaMonths,
     b2BandPct,
     b3VolLookback,
@@ -161,7 +162,7 @@ export const calculateSignalB = (
   } = config;
   
   const ratios = msciPrices.map((msci, i) => msci / goldPrices[i]);
-  const ratioSmas = ratios.map((_, i) => calculateSMA(ratios.slice(0, i + 1), 10));
+  const ratioSmas = ratios.map((_, i) => calculateSMA(ratios.slice(0, i + 1), b1SmaMonths));
   
   const msciSmas = msciPrices.map((_, i) => calculateSMA(msciPrices.slice(0, i + 1), b2SmaMonths));
   const msciReturns = calculateReturns(msciPrices);
@@ -176,8 +177,8 @@ export const calculateSignalB = (
     const b1Value = ratios[i];
     const ratioSma = ratioSmas[i];
     if (ratioSma !== null) {
-      if (b1Value > ratioSma * 1.01) b1Signal = 'ON';
-      else if (b1Value < ratioSma * 0.99) b1Signal = 'OFF';
+      if (b1Value > ratioSma * (1 + b1BandPct)) b1Signal = 'ON';
+      else if (b1Value < ratioSma * (1 - b1BandPct)) b1Signal = 'OFF';
     }
     
     // B2: MSCI equity trend
@@ -238,11 +239,11 @@ export const calculateSignalB = (
       if (allOn) {
         confirmedRegime = 'RISK_ON';
         confirmCount = confirmMonths;
-        reason = `Voto 2-su-3: ${onCount} ON, ${confirmMonths} conferme → RISK-ON`;
+        reason = `Voto ${minVotesRequired}-su-3: ${onCount} ON, ${confirmMonths} conferme → RISK-ON`;
       } else if (allOff) {
         confirmedRegime = 'RISK_OFF';
         confirmCount = confirmMonths;
-        reason = `Voto 2-su-3: ${offCount} OFF, ${confirmMonths} conferme → RISK-OFF`;
+        reason = `Voto ${minVotesRequired}-su-3: ${offCount} OFF, ${confirmMonths} conferme → RISK-OFF`;
       } else {
         confirmCount = recentRawSignals.filter(s => s === rawSignal).length;
         reason = previousRegime === 'UNDETERMINED'
