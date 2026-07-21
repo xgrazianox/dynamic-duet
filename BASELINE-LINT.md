@@ -34,6 +34,25 @@ introdotto nelle fasi F1–F6, e la baseline deve essere azzerata entro la F6.
 | src/contexts/SignalEngineContext.tsx | 10 (×3) | react-refresh/only-export-components |
 | src/contexts/SignalEngineContext.tsx | 70 | react-refresh/only-export-components |
 
+## Delta rispetto al conteggio audit (16 problemi: 7 err, 9 warn)
+
+I 3 warning "aggiuntivi" (12 vs 9) sono TUTTI sulla riga 10 di
+`src/contexts/SignalEngineContext.tsx`, che dichiara tre named export non
+componente sulla STESSA riga:
+`export { SignalEngineContext, SignalEngineProvider, useSignalEngine }`.
+La regola `react-refresh/only-export-components` emette una violazione per
+ciascun symbol non-componente esportato: qui produce 3 report distinti (col 10,
+30, 50). L'audit li deduplica per file/linea a 1 warning; ESLint li conta
+separatamente, portando il totale a 12 anziché 9. Nessuna nuova regola,
+nessun nuovo file lintato. I 7 errori restano identici prima e dopo F0.
+
+## Conferma "no new errors" introdotti dalla Fase 0
+
+F0 ha creato/modificato solo: `vitest.config.ts`, `src/test/setup.ts`,
+`src/test/smoke.test.ts`, `tsconfig.app.json`, `package.json`,
+`BASELINE-LINT.md`. Nessuno di questi file compare nell'output di ESLint. La
+distribuzione degli errori/warning per file è invariata rispetto all'audit.
+
 ## Strategia di test futura (F1+)
 
 - **RPC + vincoli DB**: test SQL/pgTAP-style via `supabase--read_query` che
