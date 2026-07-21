@@ -205,7 +205,9 @@ export default function PortfolioPage() {
 
   const handleConfirmIncrease = (amount: number, quantity: number, price: number, notes: string, date: string) => {
     if (!selectedPosition) return;
-    
+    const isNonEur = selectedPosition.instrument.currency !== 'EUR';
+    const fx = isNonEur ? FX_EURUSD : 1;
+
     const newTransaction: Transaction = {
       id: `t${Date.now()}`,
       instrumentId: selectedPosition.instrument.id,
@@ -215,6 +217,7 @@ export default function PortfolioPage() {
       quantity,
       pricePerUnit: price,
       totalValueEur: amount,
+      ...(isNonEur ? { fxRateUsed: fx } : {}),
       notes,
       createdAt: new Date().toISOString()
     };
@@ -225,9 +228,11 @@ export default function PortfolioPage() {
     setPositions(prev => prev.map(p => {
       if (p.id === selectedPosition.position.id) {
         const oldQuantity = p.quantity || 0;
-        const oldCost = (p.averageBuyPrice || 0) * oldQuantity;
+        // averageBuyPrice stays in native currency; convert EUR amount to native for cost math.
+        const oldCostNative = (p.averageBuyPrice || 0) * oldQuantity;
+        const addedCostNative = amount * fx;
         const newTotalQuantity = oldQuantity + quantity;
-        const newAvgPrice = (oldCost + amount) / newTotalQuantity;
+        const newAvgPrice = newTotalQuantity > 0 ? (oldCostNative + addedCostNative) / newTotalQuantity : (p.averageBuyPrice || 0);
         
         return {
           ...p,
@@ -249,7 +254,9 @@ export default function PortfolioPage() {
 
   const handleConfirmDecrease = (amount: number, quantity: number, price: number, notes: string, date: string) => {
     if (!selectedPosition) return;
-    
+    const isNonEur = selectedPosition.instrument.currency !== 'EUR';
+    const fx = isNonEur ? FX_EURUSD : 1;
+
     const newTransaction: Transaction = {
       id: `t${Date.now()}`,
       instrumentId: selectedPosition.instrument.id,
@@ -259,15 +266,16 @@ export default function PortfolioPage() {
       quantity,
       pricePerUnit: price,
       totalValueEur: amount,
+      ...(isNonEur ? { fxRateUsed: fx } : {}),
       notes,
       createdAt: new Date().toISOString()
     };
     
     setTransactions(prev => [...prev, newTransaction]);
 
-    // Record realized P&L
-    const buyPrice = selectedPosition.position.averageBuyPrice || price;
-    const invested = buyPrice * quantity;
+    // Record realized P&L (all in EUR; convert native prices via fx).
+    const buyPriceNative = selectedPosition.position.averageBuyPrice || price;
+    const investedEur = (buyPriceNative * quantity) / fx;
     const buyDateStr = selectedPosition.position.asOfDate || date;
     const holdingDays = Math.max(
       0,
@@ -279,13 +287,13 @@ export default function PortfolioPage() {
       sleeveKey: selectedPosition.position.sleeveKey,
       buyDate: buyDateStr,
       sellDate: date,
-      buyPrice,
+      buyPrice: buyPriceNative,
       sellPrice: price,
       quantity,
-      investedAmount: invested,
+      investedAmount: investedEur,
       soldAmount: amount,
-      profitLossEur: amount - invested,
-      profitLossPercent: invested > 0 ? ((amount - invested) / invested) * 100 : 0,
+      profitLossEur: amount - investedEur,
+      profitLossPercent: investedEur > 0 ? ((amount - investedEur) / investedEur) * 100 : 0,
       holdingDays,
     });
     
@@ -318,7 +326,9 @@ export default function PortfolioPage() {
 
   const handleConfirmClose = (notes: string, date: string) => {
     if (!selectedPosition) return;
-    
+    const isNonEur = selectedPosition.instrument.currency !== 'EUR';
+    const fx = isNonEur ? FX_EURUSD : 1;
+
     const newTransaction: Transaction = {
       id: `t${Date.now()}`,
       instrumentId: selectedPosition.instrument.id,
@@ -328,6 +338,7 @@ export default function PortfolioPage() {
       quantity: selectedPosition.position.quantity || 0,
       pricePerUnit: selectedPosition.lastPrice,
       totalValueEur: selectedPosition.position.marketValueEur,
+      ...(isNonEur ? { fxRateUsed: fx } : {}),
       notes,
       createdAt: new Date().toISOString()
     };
@@ -337,7 +348,7 @@ export default function PortfolioPage() {
     // Record realized P&L for full close
     const qtyClose = selectedPosition.position.quantity || 0;
     const buyPriceClose = selectedPosition.position.averageBuyPrice || selectedPosition.lastPrice;
-    const investedClose = buyPriceClose * qtyClose;
+    const investedClose = (buyPriceClose * qtyClose) / fx;
     const soldClose = selectedPosition.position.marketValueEur;
     const buyDateClose = selectedPosition.position.asOfDate || date;
     const holdingDaysClose = Math.max(

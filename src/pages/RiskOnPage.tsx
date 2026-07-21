@@ -2,17 +2,35 @@ import { TrendingUp, Info } from 'lucide-react';
 import { mockTargetsRiskOn, mockStrategyState } from '@/lib/mockData';
 import { SLEEVES } from '@/types/portfolio';
 import { useSignalEngine } from '@/contexts/SignalEngineContext';
+import { useAppState } from '@/contexts/AppStateContext';
 
 export default function RiskOnPage() {
-  const totalWeight = mockTargetsRiskOn.reduce((sum, t) => sum + t.baseWeight, 0);
   const { finalRegime } = useSignalEngine();
+  const { strategyConfig } = useAppState();
   const isActive = finalRegime === 'RISK_ON';
+  const bonus = strategyConfig.themeBonusPercent;
+  const bonusLabel = `+${(bonus * 100).toFixed(1).replace(/\.0$/, '')}%`;
+
+  // Compute effective weights with contrarian tilt: eligible themes get +bonus,
+  // ESTR_CASH absorbs the total bonus so the sum stays 100%.
+  const eligibleSleeves = new Set<string>();
+  if (mockStrategyState.theme1Eligible && mockStrategyState.theme1Selected) eligibleSleeves.add(mockStrategyState.theme1Selected);
+  if (mockStrategyState.theme2Eligible && mockStrategyState.theme2Selected) eligibleSleeves.add(mockStrategyState.theme2Selected);
+  const appliedBonusTotal = eligibleSleeves.size * bonus;
+
+  const targetsWithTilt = mockTargetsRiskOn.map(t => {
+    let effective = t.baseWeight;
+    if (eligibleSleeves.has(t.sleeveKey)) effective += bonus;
+    if (t.sleeveKey === 'ESTR_CASH') effective = Math.max(0, effective - appliedBonusTotal);
+    return { ...t, effectiveWeight: effective, tiltDelta: effective - t.baseWeight };
+  });
+  const totalWeight = targetsWithTilt.reduce((s, t) => s + t.effectiveWeight, 0);
 
   // Group by category
   const categories = ['CORE', 'FACTOR', 'THEME', 'HEDGE', 'CASH'];
   const grouped = categories.map(cat => ({
     category: cat,
-    items: mockTargetsRiskOn.filter(t => SLEEVES[t.sleeveKey]?.category === cat)
+    items: targetsWithTilt.filter(t => SLEEVES[t.sleeveKey]?.category === cat)
   })).filter(g => g.items.length > 0);
 
   return (
@@ -45,15 +63,17 @@ export default function RiskOnPage() {
             con esposizione a equity globale, settori tematici e quality/value factor.
           </p>
           <p>
-            <strong className="text-foreground">Tilt Contrarian:</strong> fino a 2 temi satellite possono ricevere 
-            un bonus del 2% ciascuno se sottoperformanti (-15% vs MSCI 12m) e trend positivo (prezzo &gt; SMA10).
+            <strong className="text-foreground">Tilt Contrarian:</strong> fino a {strategyConfig.maxThemes} temi satellite possono ricevere
+            un bonus del {(bonus * 100).toFixed(1).replace(/\.0$/, '')}% ciascuno se sottoperformanti (
+            {(strategyConfig.underperformanceThreshold * 100).toFixed(0)}% vs MSCI 12m) e trend positivo (prezzo &gt; SMA{strategyConfig.smaMonths}).
+            L'eventuale bonus è sottratto dallo sleeve ESTR_CASH per mantenere il totale al 100%.
           </p>
         </div>
       </div>
 
       {/* Allocation by category */}
       {grouped.map(group => {
-        const categoryWeight = group.items.reduce((sum, t) => sum + t.baseWeight, 0);
+        const categoryWeight = group.items.reduce((sum, t) => sum + t.effectiveWeight, 0);
         
         return (
           <div key={group.category} className="rounded-xl border border-border bg-card card-glow overflow-hidden">
@@ -64,32 +84,36 @@ export default function RiskOnPage() {
             <div className="divide-y divide-border">
               {group.items.map(target => {
                 const sleeve = SLEEVES[target.sleeveKey];
-                const hasThemeBonus = 
-                  mockStrategyState.theme1Selected === target.sleeveKey && mockStrategyState.theme1Eligible ||
-                  mockStrategyState.theme2Selected === target.sleeveKey && mockStrategyState.theme2Eligible;
-                
+                const hasThemeBonus = eligibleSleeves.has(target.sleeveKey);
+                const isCashOffset = target.sleeveKey === 'ESTR_CASH' && appliedBonusTotal > 0;
                 return (
                   <div key={target.id} className="flex items-center p-4 hover:bg-accent/30 transition-colors">
                     <div className="flex-1">
                       <p className="font-medium">{sleeve?.name || target.sleeveKey}</p>
                       {hasThemeBonus && (
-                        <span className="text-xs text-primary">+2% tilt contrarian applicato</span>
+                        <span className="text-xs text-primary">{bonusLabel} tilt contrarian applicato</span>
+                      )}
+                      {isCashOffset && (
+                        <span className="text-xs text-muted-foreground">−{(appliedBonusTotal * 100).toFixed(1).replace(/\.0$/, '')}% compensazione tilt</span>
                       )}
                     </div>
                     <div className="w-48 mx-4">
                       <div className="h-2 rounded-full bg-secondary overflow-hidden">
                         <div 
                           className="h-full bg-primary transition-all duration-500"
-                          style={{ width: `${target.baseWeight * 100 * 2}%` }}
+                          style={{ width: `${target.effectiveWeight * 100 * 2}%` }}
                         />
                       </div>
                     </div>
                     <div className="w-24 text-right">
                       <span className="font-mono font-semibold">
-                        {(target.baseWeight * 100).toFixed(1)}%
+                        {(target.effectiveWeight * 100).toFixed(1)}%
                       </span>
                       {hasThemeBonus && (
-                        <span className="text-xs text-primary ml-1">+2%</span>
+                        <span className="text-xs text-primary ml-1">{bonusLabel}</span>
+                      )}
+                      {isCashOffset && (
+                        <span className="text-xs text-muted-foreground ml-1">−{(appliedBonusTotal * 100).toFixed(1).replace(/\.0$/, '')}%</span>
                       )}
                     </div>
                   </div>
