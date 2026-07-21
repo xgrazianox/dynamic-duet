@@ -35,8 +35,6 @@ export type RawSignal = 'ON' | 'OFF' | 'NEUTRAL';
 
 export type DecisionMode = 'USE_A' | 'USE_B' | 'A_AND_B' | 'A_OR_B' | 'A_PRIORITY';
 
-export type NeutralHandling = 'EXCLUDE' | 'KEEP_PREVIOUS';
-
 // Signal A - Double Confirmation on MSCI/Gold Ratio
 export interface SignalAConfig {
   smaMonths: number;           // default 10
@@ -70,10 +68,10 @@ export interface SignalAResult {
 // Signal B - 2-out-of-3 Majority Vote
 export interface SignalBConfig {
   confirmMonths: number;       // default 2
-  neutralHandling: NeutralHandling;  // default 'EXCLUDE'
   minVotesRequired: number;    // default 2
   // Sub-signal configs
-  b1UseRatio: boolean;         // default true (uses MSCI/Gold ratio)
+  b1SmaMonths: number;         // default 10 (MSCI/Gold ratio SMA)
+  b1BandPct: number;           // default 0.01 (±1% band on ratio)
   b2SmaMonths: number;         // default 10 (MSCI trend)
   b2BandPct: number;           // default 0.01 (1%)
   b3VolLookback: number;       // default 6 months
@@ -343,9 +341,9 @@ export const defaultSignalEngineConfig: SignalEngineConfig = {
   },
   signalB: {
     confirmMonths: 2,
-    neutralHandling: 'EXCLUDE',
     minVotesRequired: 2,
-    b1UseRatio: true,
+    b1SmaMonths: 10,
+    b1BandPct: 0.01,
     b2SmaMonths: 10,
     b2BandPct: 0.01,
     b3VolLookback: 6,

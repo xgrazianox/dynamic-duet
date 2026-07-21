@@ -3,9 +3,23 @@ import { SignalBResult } from '@/types/portfolio';
 
 interface SignalBPanelProps {
   result: SignalBResult;
+  confirmMonths?: number;
+  minVotesRequired?: number;
+  b1SmaMonths?: number;
+  b2SmaMonths?: number;
+  b3VolLookback?: number;
+  b3VolThreshold?: number;
 }
 
-export function SignalBPanel({ result }: SignalBPanelProps) {
+export function SignalBPanel({
+  result,
+  confirmMonths = 2,
+  minVotesRequired = 2,
+  b1SmaMonths = 10,
+  b2SmaMonths = 10,
+  b3VolLookback = 6,
+  b3VolThreshold = 0.18,
+}: SignalBPanelProps) {
   const { currentRegime, vote, confirmCount, reason, history } = result;
   
   const isRiskOn = currentRegime === 'RISK_ON';
@@ -24,7 +38,7 @@ export function SignalBPanel({ result }: SignalBPanelProps) {
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <span className="text-primary">Sistema B</span>
-            <span className="text-muted-foreground">— Voto 2-su-3</span>
+            <span className="text-muted-foreground">— Voto {minVotesRequired}-su-3</span>
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
             Majority vote su 3 segnali indipendenti
@@ -58,7 +72,7 @@ export function SignalBPanel({ result }: SignalBPanelProps) {
             <BarChart3 className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium">B1: Ratio Trend</span>
           </div>
-          <p className="text-xs text-muted-foreground mb-2">MSCI/Gold vs SMA</p>
+          <p className="text-xs text-muted-foreground mb-2">MSCI/Gold vs SMA({b1SmaMonths})</p>
           <span className={getSignalBadge(vote.b1)}>{vote.b1}</span>
         </div>
         
@@ -68,7 +82,7 @@ export function SignalBPanel({ result }: SignalBPanelProps) {
             <TrendingUp className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium">B2: Equity Trend</span>
           </div>
-          <p className="text-xs text-muted-foreground mb-2">MSCI vs SMA(10)</p>
+          <p className="text-xs text-muted-foreground mb-2">MSCI vs SMA({b2SmaMonths})</p>
           <span className={getSignalBadge(vote.b2)}>{vote.b2}</span>
         </div>
         
@@ -78,7 +92,7 @@ export function SignalBPanel({ result }: SignalBPanelProps) {
             <Activity className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium">B3: Volatilità</span>
           </div>
-          <p className="text-xs text-muted-foreground mb-2">Realized vol 6m</p>
+          <p className="text-xs text-muted-foreground mb-2">Realized vol {b3VolLookback}m &gt; {(b3VolThreshold * 100).toFixed(0)}%</p>
           <span className={getSignalBadge(vote.b3)}>{vote.b3}</span>
         </div>
       </div>
@@ -102,7 +116,7 @@ export function SignalBPanel({ result }: SignalBPanelProps) {
             </span>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Conferma {confirmCount}/2 — {reason}
+            Conferma {confirmCount}/{confirmMonths} — {reason}
           </p>
         </div>
       </div>

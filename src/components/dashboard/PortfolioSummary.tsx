@@ -8,9 +8,10 @@ interface PortfolioSummaryProps {
 export function PortfolioSummary({ positions }: PortfolioSummaryProps) {
   const totalValue = positions.reduce((sum, p) => sum + p.marketValueEur, 0);
   
-  // Mock performance data
+  // NOTE: performance % non ancora derivabile dai dati storici disponibili — placeholder marcato "demo".
   const dailyChange = 0.0032;
   const monthlyChange = 0.0185;
+  const isDemo = true;
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 card-glow">
@@ -32,7 +33,7 @@ export function PortfolioSummary({ positions }: PortfolioSummaryProps) {
             ) : (
               <ArrowDownRight className="h-4 w-4 text-destructive" />
             )}
-            <span className="text-xs text-muted-foreground">Oggi</span>
+            <span className="text-xs text-muted-foreground">Oggi{isDemo ? ' (demo)' : ''}</span>
           </div>
           <p className={`font-mono font-semibold ${dailyChange >= 0 ? 'positive' : 'negative'}`}>
             {dailyChange >= 0 ? '+' : ''}{(dailyChange * 100).toFixed(2)}%
@@ -45,7 +46,7 @@ export function PortfolioSummary({ positions }: PortfolioSummaryProps) {
             ) : (
               <ArrowDownRight className="h-4 w-4 text-destructive" />
             )}
-            <span className="text-xs text-muted-foreground">Mese</span>
+            <span className="text-xs text-muted-foreground">Mese{isDemo ? ' (demo)' : ''}</span>
           </div>
           <p className={`font-mono font-semibold ${monthlyChange >= 0 ? 'positive' : 'negative'}`}>
             {monthlyChange >= 0 ? '+' : ''}{(monthlyChange * 100).toFixed(2)}%

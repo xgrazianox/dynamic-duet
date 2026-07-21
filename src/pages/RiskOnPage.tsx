@@ -25,7 +25,7 @@ export default function RiskOnPage() {
             Portafoglio Target RISK-ON
           </h1>
           <p className="text-muted-foreground mt-1">
-            Allocazione quando Ratio MSCI/Gold &gt; SMA(10)
+            Allocazione applicata quando il regime finale del Signal Engine è RISK-ON
           </p>
         </div>
         {isActive && (

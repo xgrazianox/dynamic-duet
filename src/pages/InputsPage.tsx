@@ -188,7 +188,7 @@ export default function InputsPage() {
         <div className="p-6 border-b border-border">
           <h3 className="font-semibold">Strumenti Configurati</h3>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {instruments.length} strumenti attivi
+            {instruments.filter(i => i.isActive).length} strumenti attivi ({instruments.length} totali)
           </p>
         </div>
 
@@ -227,7 +227,7 @@ export default function InputsPage() {
                     <td className="text-right font-mono">
                       {latestPrice ? (
                         <>
-                          {instrument.currency === 'EUR' ? '€' : '$'}
+                          {instrument.currency === 'EUR' ? '€' : instrument.currency === 'USD' ? '$' : instrument.currency === 'CHF' ? '₣' : instrument.currency}
                           {latestPrice.closePrice.toFixed(2)}
                         </>
                       ) : '-'}
@@ -434,7 +434,6 @@ export default function InputsPage() {
                       <SelectItem value="EUR">EUR</SelectItem>
                       <SelectItem value="USD">USD</SelectItem>
                       <SelectItem value="CHF">CHF</SelectItem>
-                      <SelectItem value="GBP">GBP</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

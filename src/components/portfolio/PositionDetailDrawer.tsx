@@ -53,7 +53,9 @@ export function PositionDetailDrawer({ open, onOpenChange, position, transaction
   if (!position) return null;
 
   const plColor = position.unrealizedPL >= 0 ? 'text-green-600' : 'text-red-600';
-  const deltaColor = position.delta >= 0 ? 'text-green-600' : 'text-red-600';
+  // Convention: delta = current − target. Positive = sovrappeso (rosso), negative = sottopeso (verde/azione BUY).
+  const deltaColor = position.delta > 0 ? 'text-red-600' : 'text-green-600';
+  const currencySymbol = position.instrument.currency === 'USD' ? '$' : position.instrument.currency === 'CHF' ? '₣' : '€';
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -95,11 +97,11 @@ export function PositionDetailDrawer({ open, onOpenChange, position, transaction
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Prezzo medio acq.</p>
-                <p className="font-mono">€{position.position.averageBuyPrice?.toFixed(2) || '-'}</p>
+                <p className="font-mono">{currencySymbol}{position.position.averageBuyPrice?.toFixed(2) || '-'}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Prezzo attuale</p>
-                <p className="font-mono">€{position.lastPrice.toFixed(2)}</p>
+                <p className="font-mono">{currencySymbol}{position.lastPrice.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Costo totale</p>
@@ -137,12 +139,12 @@ export function PositionDetailDrawer({ open, onOpenChange, position, transaction
                       {position.suggestedTradeEur >= 0 ? '+' : ''}€{position.suggestedTradeEur.toLocaleString('it-IT')}
                     </p>
                   </div>
-                  <Badge variant={position.delta > 0 ? 'default' : 'secondary'}>
-                    {position.delta > 0 ? 'Sottopeso' : 'Sovrappeso'}
+                  <Badge variant={position.delta < 0 ? 'default' : 'secondary'}>
+                    {position.delta < 0 ? 'Sottopeso' : 'Sovrappeso'}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  {position.delta > 0 
+                  {position.delta < 0
                     ? 'La posizione è sottopesata rispetto al target. Considera di aumentare.'
                     : 'La posizione è sovrappesata rispetto al target. Considera di ridurre.'}
                 </p>

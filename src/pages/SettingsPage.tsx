@@ -1,17 +1,28 @@
 import { useState } from 'react';
-import { Settings, Database, Clock, Key, Save } from 'lucide-react';
+import { Settings, Database, Clock, Key, Save, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { defaultStrategyConfig } from '@/lib/mockData';
+import { useAppState } from '@/contexts/AppStateContext';
+import { useSignalEngine } from '@/contexts/SignalEngineContext';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
-  const [config, setConfig] = useState(defaultStrategyConfig);
+  const { strategyConfig, setStrategyConfig } = useAppState();
+  const { config: engineConfig, updateConfig } = useSignalEngine();
+  const [config, setConfig] = useState(strategyConfig);
+  const [signalCfg, setSignalCfg] = useState(engineConfig);
   const [apiKey, setApiKey] = useState('');
   const [updateFrequency, setUpdateFrequency] = useState('daily');
 
   const handleSave = () => {
+    setStrategyConfig(config);
+    // Sync Signal A SMA months with the strategy SMA months per requirement.
+    updateConfig((prev) => ({
+      ...prev,
+      signalA: { ...prev.signalA, smaMonths: config.smaMonths, bandPct: signalCfg.signalA.bandPct, confirmMonths: signalCfg.signalA.confirmMonths },
+      signalB: { ...prev.signalB, ...signalCfg.signalB },
+    }));
     toast.success('Impostazioni salvate con successo');
   };
 
@@ -122,6 +133,65 @@ export default function SettingsPage() {
             <p className="text-xs text-muted-foreground">
               I trade vengono arrotondati a questo multiplo
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Signal Engine */}
+      <div className="rounded-xl border border-border bg-card p-6 card-glow">
+        <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <Radio className="h-5 w-5 text-primary" />
+          Signal Engine
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-2">
+            <Label>Sistema A: Banda ±%</Label>
+            <Input
+              type="number"
+              step="0.1"
+              value={signalCfg.signalA.bandPct * 100}
+              onChange={(e) => setSignalCfg({ ...signalCfg, signalA: { ...signalCfg.signalA, bandPct: parseFloat(e.target.value) / 100 } })}
+              className="font-mono"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Sistema A: Mesi Conferma</Label>
+            <Input
+              type="number"
+              value={signalCfg.signalA.confirmMonths}
+              onChange={(e) => setSignalCfg({ ...signalCfg, signalA: { ...signalCfg.signalA, confirmMonths: parseInt(e.target.value) } })}
+              className="font-mono"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Sistema B: Voti Minimi</Label>
+            <Input
+              type="number"
+              min={1}
+              max={3}
+              value={signalCfg.signalB.minVotesRequired}
+              onChange={(e) => setSignalCfg({ ...signalCfg, signalB: { ...signalCfg.signalB, minVotesRequired: parseInt(e.target.value) } })}
+              className="font-mono"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>B3: Soglia Volatilità (%)</Label>
+            <Input
+              type="number"
+              step="1"
+              value={signalCfg.signalB.b3VolThreshold * 100}
+              onChange={(e) => setSignalCfg({ ...signalCfg, signalB: { ...signalCfg.signalB, b3VolThreshold: parseFloat(e.target.value) / 100 } })}
+              className="font-mono"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>B3: Lookback (mesi)</Label>
+            <Input
+              type="number"
+              value={signalCfg.signalB.b3VolLookback}
+              onChange={(e) => setSignalCfg({ ...signalCfg, signalB: { ...signalCfg.signalB, b3VolLookback: parseInt(e.target.value) } })}
+              className="font-mono"
+            />
           </div>
         </div>
       </div>

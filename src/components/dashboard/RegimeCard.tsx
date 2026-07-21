@@ -5,9 +5,11 @@ interface RegimeCardProps {
   regime: Regime;
   ratio: number;
   sma10: number;
+  smaMonths?: number;
+  reason?: string;
 }
 
-export function RegimeCard({ regime, ratio, sma10 }: RegimeCardProps) {
+export function RegimeCard({ regime, ratio, sma10, smaMonths = 10, reason }: RegimeCardProps) {
   const isRiskOn = regime === 'RISK_ON';
   const isUndetermined = regime === 'UNDETERMINED';
 
@@ -51,16 +53,18 @@ export function RegimeCard({ regime, ratio, sma10 }: RegimeCardProps) {
             <p className="font-mono text-xl font-semibold">{ratio.toFixed(3)}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground mb-1">SMA(10)</p>
+            <p className="text-xs text-muted-foreground mb-1">SMA({smaMonths})</p>
             <p className="font-mono text-xl font-semibold">{sma10.toFixed(3)}</p>
           </div>
         </div>
 
         <div className="mt-4 pt-4 border-t border-border">
           <p className="text-sm text-muted-foreground">
-            {isUndetermined 
-              ? 'Dati insufficienti per determinare il regime'
-              : `Ratio ${isRiskOn ? 'sopra' : 'sotto'} la media mobile a 10 mesi`
+            {reason
+              ? reason
+              : isUndetermined
+                ? 'Dati insufficienti per determinare il regime'
+                : `Ratio ${isRiskOn ? 'sopra' : 'sotto'} la media mobile a ${smaMonths} mesi`
             }
           </p>
         </div>

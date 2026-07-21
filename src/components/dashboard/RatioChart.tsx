@@ -2,13 +2,14 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useSignalEngine } from '@/contexts/SignalEngineContext';
 
 export function RatioChart() {
-  const { ratioHistory } = useSignalEngine();
+  const { ratioHistory, config } = useSignalEngine();
+  const smaMonths = config.signalA.smaMonths;
   const latestSMA = ratioHistory[ratioHistory.length - 1]?.sma10;
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 card-glow">
       <div className="mb-4">
-        <h3 className="font-semibold">Ratio MSCI/Gold vs SMA(10)</h3>
+        <h3 className="font-semibold">Ratio MSCI/Gold vs SMA({smaMonths})</h3>
         <p className="text-sm text-muted-foreground mt-0.5">
           Ultimi 24 mesi - Determina regime RISK-ON/OFF
         </p>
@@ -42,7 +43,7 @@ export function RatioChart() {
               labelFormatter={(value) => `Data: ${value}`}
               formatter={(value: number, name: string) => [
                 value?.toFixed(3),
-                name === 'ratio' ? 'Ratio' : 'SMA(10)'
+                name === 'ratio' ? 'Ratio' : `SMA(${smaMonths})`
               ]}
             />
             <Line 
@@ -81,7 +82,7 @@ export function RatioChart() {
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-0.5 bg-warning rounded" style={{ backgroundImage: 'linear-gradient(90deg, transparent 50%, hsl(222 47% 8%) 50%)', backgroundSize: '6px 100%' }} />
-          <span className="text-xs text-muted-foreground">SMA(10)</span>
+          <span className="text-xs text-muted-foreground">SMA({smaMonths})</span>
         </div>
       </div>
     </div>
