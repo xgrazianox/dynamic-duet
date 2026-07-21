@@ -44,14 +44,14 @@ export default function InputsPage() {
       setTimeout(() => pricesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
       setTimeout(() => setPricesHighlighted(false), 3000);
     }
-    if (dl.alertId) {
-      resolveAlert(dl.alertId);
+    // OPEN_PRICE_UPDATE: only scroll + highlight, do NOT auto-resolve the alert.
+    if (dl.focus || dl.alertId) {
       const next = new URLSearchParams(searchParams);
       next.delete('alertId');
       next.delete('focus');
       setSearchParams(next, { replace: true });
     }
-  }, [searchParams, resolveAlert, setSearchParams]);
+  }, [searchParams, setSearchParams]);
 
   const handleImportCsv = async () => {
     setIsImporting(true);

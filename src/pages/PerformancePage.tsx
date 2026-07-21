@@ -9,46 +9,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { mockClosedPositions, calculatePLSummary } from '@/lib/mockData';
+import { calculatePLSummary } from '@/lib/mockData';
 import { useAppState } from '@/contexts/AppStateContext';
 import { TransactionForm } from '@/components/transactions/TransactionForm';
 import { TransactionsHistory } from '@/components/transactions/TransactionsHistory';
-import { SLEEVES, Transaction, ClosedPosition } from '@/types/portfolio';
-import { useMemo, useState } from 'react';
+import { SLEEVES, Transaction } from '@/types/portfolio';
+import { useMemo } from 'react';
 
 export default function PerformancePage() {
-  const { transactions, setTransactions, instruments, positions } = useAppState();
-  const [closedPositions] = useState(mockClosedPositions);
-
-  // Derive additional closed positions from real SELL/CLOSE transactions.
-  const derivedClosed: ClosedPosition[] = useMemo(() => {
-    return transactions
-      .filter(tx => tx.type === 'SELL' || tx.type === 'CLOSE')
-      .map(tx => {
-        const pos = positions.find(p => p.instrumentId === tx.instrumentId);
-        const buyPrice = pos?.averageBuyPrice ?? tx.pricePerUnit;
-        const invested = buyPrice * tx.quantity;
-        const sold = tx.pricePerUnit * tx.quantity;
-        return {
-          id: `derived-${tx.id}`,
-          instrumentId: tx.instrumentId,
-          sleeveKey: tx.sleeveKey,
-          buyDate: tx.date,
-          sellDate: tx.date,
-          buyPrice,
-          sellPrice: tx.pricePerUnit,
-          quantity: tx.quantity,
-          investedAmount: invested,
-          soldAmount: sold,
-          profitLossEur: sold - invested,
-          profitLossPercent: invested > 0 ? ((sold - invested) / invested) * 100 : 0,
-          holdingDays: 0,
-        };
-      });
-  }, [transactions, positions]);
-
-  const allClosed = useMemo(() => [...closedPositions, ...derivedClosed], [closedPositions, derivedClosed]);
-  const summary = calculatePLSummary(allClosed);
+  const { transactions, setTransactions, instruments, closedPositions } = useAppState();
+  const allClosed = closedPositions;
+  const summary = useMemo(() => calculatePLSummary(allClosed), [allClosed]);
 
   const handleNewTransaction = (tx: Omit<Transaction, 'id' | 'createdAt'>) => {
     const newTransaction: Transaction = {
@@ -143,7 +114,7 @@ export default function PerformancePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-mono text-risk-off">
-              {summary.avgLoss < 0 ? '-' : ''}€{Math.abs(summary.avgLoss).toFixed(2)}
+              {summary.avgLoss < 0 ? '-' : ''}€{Math.abs(summary.avgLoss).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-sm text-muted-foreground">
               per trade perdente

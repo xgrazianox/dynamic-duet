@@ -34,14 +34,14 @@ export default function SignalsPage() {
       }, 100);
       setTimeout(() => setHighlightedPanel(null), 3000);
     }
-    if (dl.alertId) {
-      resolveAlert(dl.alertId);
+    // OPEN_SIGNALS_VIEW: only scroll + highlight, do NOT auto-resolve the alert.
+    if (dl.panel || dl.alertId) {
       const next = new URLSearchParams(searchParams);
       next.delete('alertId');
       next.delete('panel');
       setSearchParams(next, { replace: true });
     }
-  }, [searchParams, resolveAlert, setSearchParams]);
+  }, [searchParams, setSearchParams]);
 
   const ringClass = (name: string) =>
     highlightedPanel === name ? 'ring-2 ring-primary rounded-lg animate-pulse' : '';
