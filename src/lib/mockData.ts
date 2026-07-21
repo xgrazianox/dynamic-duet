@@ -95,9 +95,11 @@ export const mockPositions: PortfolioPosition[] = [
   { id: '4', instrumentId: '4', sleeveKey: 'NASDAQ_AI', asOfDate: getMonthDate(0), marketValueEur: 9500, averageBuyPrice: 320.00, quantity: 30, lastPrice: 316.67 },
   { id: '5', instrumentId: '5', sleeveKey: 'DEFENSE', asOfDate: getMonthDate(0), marketValueEur: 4800, averageBuyPrice: 22.50, quantity: 210, lastPrice: 22.86 },
   { id: '6', instrumentId: '6', sleeveKey: 'UTILITIES_GRID', asOfDate: getMonthDate(0), marketValueEur: 4500, averageBuyPrice: 28.40, quantity: 155, lastPrice: 29.03 },
-  { id: '7', instrumentId: '7', sleeveKey: 'CRITICAL_METALS', asOfDate: getMonthDate(0), marketValueEur: 5800, averageBuyPrice: 38.90, quantity: 145, lastPrice: 40.00 },
-  { id: '8', instrumentId: '8', sleeveKey: 'URANIUM_NUCLEAR', asOfDate: getMonthDate(0), marketValueEur: 4200, averageBuyPrice: 26.30, quantity: 158, lastPrice: 26.58 },
-  { id: '9', instrumentId: '9', sleeveKey: 'CLEAN_ENERGY', asOfDate: getMonthDate(0), marketValueEur: 3500, averageBuyPrice: 8.50, quantity: 350, lastPrice: 10.00 },
+  // COPX/URA sono in USD: marketValueEur = quantity × lastPriceUSD / FX_EURUSD.
+  { id: '7', instrumentId: '7', sleeveKey: 'CRITICAL_METALS', asOfDate: getMonthDate(0), marketValueEur: Math.round((145 * 40.00 / FX_EURUSD) * 100) / 100, averageBuyPrice: 38.90, quantity: 145, lastPrice: 40.00 },
+  { id: '8', instrumentId: '8', sleeveKey: 'URANIUM_NUCLEAR', asOfDate: getMonthDate(0), marketValueEur: Math.round((158 * 26.58 / FX_EURUSD) * 100) / 100, averageBuyPrice: 26.30, quantity: 158, lastPrice: 26.58 },
+  // CLEAN_ENERGY: dopo BUY 500 @ 9.20 e SELL 150, i 350 residui hanno costo medio 9.20.
+  { id: '9', instrumentId: '9', sleeveKey: 'CLEAN_ENERGY', asOfDate: getMonthDate(0), marketValueEur: 3500, averageBuyPrice: 9.20, quantity: 350, lastPrice: 10.00 },
   { id: '10', instrumentId: '10', sleeveKey: 'GOLD', asOfDate: getMonthDate(0), marketValueEur: 10500, averageBuyPrice: 58.20, quantity: 180, lastPrice: 58.33 },
   { id: '11', instrumentId: '11', sleeveKey: 'ESTR_CASH', asOfDate: getMonthDate(0), marketValueEur: 7000, averageBuyPrice: 100.00, quantity: 70, lastPrice: 100.00 },
 ];
@@ -205,8 +207,8 @@ export const mockTransactions: Transaction[] = [
   { id: 't-init-3', instrumentId: '3', sleeveKey: 'WORLD_VALUE', type: 'INIT', date: getDateString(365), quantity: 200, pricePerUnit: 35.80, totalValueEur: 7160, notes: 'Saldo iniziale', createdAt: new Date().toISOString() },
   { id: 't-init-5', instrumentId: '5', sleeveKey: 'DEFENSE', type: 'INIT', date: getDateString(365), quantity: 210, pricePerUnit: 22.50, totalValueEur: 4725, notes: 'Saldo iniziale', createdAt: new Date().toISOString() },
   { id: 't-init-6', instrumentId: '6', sleeveKey: 'UTILITIES_GRID', type: 'INIT', date: getDateString(365), quantity: 155, pricePerUnit: 28.40, totalValueEur: 4402, notes: 'Saldo iniziale', createdAt: new Date().toISOString() },
-  { id: 't-init-7', instrumentId: '7', sleeveKey: 'CRITICAL_METALS', type: 'INIT', date: getDateString(365), quantity: 145, pricePerUnit: 38.90, totalValueEur: 5220.71, notes: 'Saldo iniziale (USD converted @1.08)', createdAt: new Date().toISOString() },
-  { id: 't-init-8', instrumentId: '8', sleeveKey: 'URANIUM_NUCLEAR', type: 'INIT', date: getDateString(365), quantity: 158, pricePerUnit: 26.30, totalValueEur: 3847.69, notes: 'Saldo iniziale (USD converted @1.08)', createdAt: new Date().toISOString() },
+  { id: 't-init-7', instrumentId: '7', sleeveKey: 'CRITICAL_METALS', type: 'INIT', date: getDateString(365), quantity: 145, pricePerUnit: 38.90, totalValueEur: Math.round((145 * 38.90 / FX_EURUSD) * 100) / 100, fxRateUsed: FX_EURUSD, notes: `Saldo iniziale (USD @${FX_EURUSD})`, createdAt: new Date().toISOString() },
+  { id: 't-init-8', instrumentId: '8', sleeveKey: 'URANIUM_NUCLEAR', type: 'INIT', date: getDateString(365), quantity: 158, pricePerUnit: 26.30, totalValueEur: Math.round((158 * 26.30 / FX_EURUSD) * 100) / 100, fxRateUsed: FX_EURUSD, notes: `Saldo iniziale (USD @${FX_EURUSD})`, createdAt: new Date().toISOString() },
   { id: 't-init-11', instrumentId: '11', sleeveKey: 'ESTR_CASH', type: 'INIT', date: getDateString(365), quantity: 70, pricePerUnit: 100.00, totalValueEur: 7000, notes: 'Saldo iniziale', createdAt: new Date().toISOString() },
 ];
 
