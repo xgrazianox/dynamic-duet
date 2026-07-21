@@ -8,21 +8,19 @@ import { RatioChart } from '@/components/dashboard/RatioChart';
 import { HoldingsTable } from '@/components/dashboard/HoldingsTable';
 import { AllocationComparisonChart } from '@/components/dashboard/AllocationComparisonChart';
 import { TransactionForm } from '@/components/transactions/TransactionForm';
-import { 
-  mockPositions, 
-  mockAlerts, 
+import {
   calculateTradeSuggestions,
   mockTargetsRiskOn,
   mockTargetsRiskOff,
-  mockInstruments
 } from '@/lib/mockData';
 import { Transaction } from '@/types/portfolio';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useSignalEngine } from '@/contexts/SignalEngineContext';
+import { useAppState } from '@/contexts/AppStateContext';
 import { toast } from 'sonner';
 
 export default function Dashboard() {
-  const [positions, setPositions] = useState(mockPositions);
+  const { positions, setPositions, instruments, alerts } = useAppState();
   const { engineResult, finalRegime, config } = useSignalEngine();
   const currentMonth = new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
   const safeRegime: 'RISK_ON' | 'RISK_OFF' =

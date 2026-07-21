@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
 import { SignalEngineProvider } from "./contexts/SignalEngineContext";
+import { AppStateProvider } from "./contexts/AppStateContext";
 import Index from "./pages/Index";
 import InputsPage from "./pages/InputsPage";
 import RiskOnPage from "./pages/RiskOnPage";
@@ -24,7 +25,8 @@ const App = () => (
       <Toaster />
       <Sonner />
       <SignalEngineProvider>
-        <BrowserRouter>
+        <AppStateProvider>
+          <BrowserRouter>
           <Routes>
             <Route element={<MainLayout />}>
               <Route path="/" element={<Index />} />
@@ -39,7 +41,8 @@ const App = () => (
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
+          </BrowserRouter>
+        </AppStateProvider>
       </SignalEngineProvider>
     </TooltipProvider>
   </QueryClientProvider>
