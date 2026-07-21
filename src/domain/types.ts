@@ -4,10 +4,9 @@ export type OpType = Database['public']['Enums']['op_type'];
 export type CurrencyCode = Database['public']['Enums']['currency_code'];
 
 /**
- * Riga ledger, come letta da `public.operations`.
- * Tutti i valori numerici sono stringhe/number del server: le convertiamo in Decimal
- * SOLO nel punto di ingresso di `ledgerReplay`. Nessun altro modulo deve usare `number`
- * per grandezze contabili.
+ * Riga ledger dalla vista `operations_v` (NUMERIC serializzati come TESTO).
+ * TUTTI i campi numerici sono `string | null`: il domain rifiuta esplicitamente number.
+ * `seq` è testo per gestire bigint > Number.MAX_SAFE_INTEGER senza perdita.
  */
 export interface LedgerRow {
   id: string;
@@ -15,28 +14,28 @@ export interface LedgerRow {
   op_type: OpType;
   effective_date: string; // YYYY-MM-DD
   recorded_at: string;    // ISO
-  seq: number;
+  seq: string;            // bigint-as-text
   instrument_id: string | null;
-  quantity: number | string | null;
-  gross_amount_eur: number | string | null;
-  fees_eur: number | string;
-  opening_cost_eur: number | string | null;
+  quantity: string | null;
+  gross_amount_eur: string | null;
+  fees_eur: string;
+  opening_cost_eur: string | null;
   reversal_of_operation_id: string | null;
   currency: CurrencyCode | null;
-  price_ccy: number | string | null;
-  fx_eur_per_unit: number | string | null;
+  price_ccy: string | null;
+  fx_eur_per_unit: string | null;
 }
 
 export interface PriceRow {
   instrument_id: string;
   price_date: string;   // YYYY-MM-DD
-  close_price: number | string; // in EUR (normalizzato lato server per opening)
+  close_price: string;  // EUR-normalized per opening rows; native ccy per market rows
 }
 
 export interface FxRow {
   currency: CurrencyCode;
   rate_date: string;
-  eur_per_unit: number | string;
+  eur_per_unit: string; // convenzione: EUR per 1 unità di valuta estera
 }
 
 export interface InstrumentRow {
@@ -44,7 +43,7 @@ export interface InstrumentRow {
   ticker: string;
   name: string;
   currency: CurrencyCode;
-  quantity_step: number;
+  quantity_step: string;
 }
 
 export interface DomainInputs {
