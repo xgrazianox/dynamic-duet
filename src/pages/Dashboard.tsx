@@ -17,10 +17,12 @@ import { PortfolioPosition, Transaction } from '@/types/portfolio';
 import { useMemo, useState } from 'react';
 import { useSignalEngine } from '@/contexts/SignalEngineContext';
 import { useAppState } from '@/contexts/AppStateContext';
+import { useAllAlerts } from '@/hooks/useAllAlerts';
 import { toast } from 'sonner';
 
 export default function Dashboard() {
-  const { positions, setPositions, setTransactions, instruments, alerts } = useAppState();
+  const { positions, setPositions, setTransactions, instruments } = useAppState();
+  const alerts = useAllAlerts();
   const { engineResult, finalRegime, config } = useSignalEngine();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
@@ -155,6 +157,8 @@ export default function Dashboard() {
           regime={finalRegime}
           ratio={engineResult.signalA.ratio}
           sma10={engineResult.signalA.sma}
+          smaMonths={config.signalA.smaMonths}
+          reason={engineResult.decision.reason}
         />
         <PortfolioSummary positions={positions} />
         <AlertsPanel alerts={alerts} />

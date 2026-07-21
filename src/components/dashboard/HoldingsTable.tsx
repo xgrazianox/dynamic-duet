@@ -26,6 +26,8 @@ export function HoldingsTable({ positions, targets }: HoldingsTableProps) {
     };
   }).sort((a, b) => b.marketValueEur - a.marketValueEur);
 
+  const shownTargetSum = tableData.reduce((s, r) => s + r.targetWeight, 0);
+
   return (
     <div className="rounded-xl border border-border bg-card card-glow overflow-hidden">
       <div className="p-6 border-b border-border">
@@ -82,7 +84,7 @@ export function HoldingsTable({ positions, targets }: HoldingsTableProps) {
                 €{totalValue.toLocaleString('it-IT')}
               </td>
               <td className="text-right font-mono">100.00%</td>
-              <td className="text-right font-mono">100.00%</td>
+              <td className="text-right font-mono">{(shownTargetSum * 100).toFixed(2)}%</td>
               <td colSpan={2}></td>
             </tr>
           </tfoot>
