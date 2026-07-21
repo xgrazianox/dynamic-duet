@@ -11,7 +11,10 @@ export function sortLedger(rows: LedgerRow[]): LedgerRow[] {
       return a.effective_date < b.effective_date ? -1 : 1;
     if (a.recorded_at !== b.recorded_at)
       return a.recorded_at < b.recorded_at ? -1 : 1;
-    return a.seq - b.seq;
+    // seq è bigint-as-text: confronto lessicografico dopo padding.
+    const la = a.seq.length, lb = b.seq.length;
+    if (la !== lb) return la - lb;
+    return a.seq < b.seq ? -1 : a.seq > b.seq ? 1 : 0;
   });
 }
 

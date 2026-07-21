@@ -12,11 +12,15 @@ async function fetchInputs(userId: string): Promise<DomainInputs> {
   if (pfErr) throw pfErr;
   if (!pf) return { operations: [], instruments: [], prices: [], fxRates: [] };
 
+  // NOTA: usiamo le viste *_v che restituiscono NUMERIC/bigint come TESTO,
+  // in modo che il dominio riceva stringhe decimali intatte (mai un binary64).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb: any = supabase;
   const [opsRes, insRes, prRes, fxRes] = await Promise.all([
-    supabase.from('operations').select('*').eq('portfolio_id', pf.id),
-    supabase.from('instruments').select('id,ticker,name,currency,quantity_step').eq('portfolio_id', pf.id),
-    supabase.from('price_points').select('instrument_id,price_date,close_price'),
-    supabase.from('fx_rates').select('currency,rate_date,eur_per_unit').eq('portfolio_id', pf.id),
+    sb.from('operations_v').select('*').eq('portfolio_id', pf.id),
+    sb.from('instruments_v').select('id,ticker,name,currency,quantity_step').eq('portfolio_id', pf.id),
+    sb.from('price_points_v').select('instrument_id,price_date,close_price'),
+    sb.from('fx_rates_v').select('currency,rate_date,eur_per_unit').eq('portfolio_id', pf.id),
   ]);
   if (opsRes.error) throw opsRes.error;
   if (insRes.error) throw insRes.error;

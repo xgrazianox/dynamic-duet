@@ -12,20 +12,29 @@ import { toast } from '@/hooks/use-toast';
 type Mode = 'import' | 'blank' | 'amend';
 type Instrument = { id: string; ticker: string; name: string; currency: 'EUR' | 'USD' | 'CHF'; instrument_type: string };
 
-// Righe precompilate dell'anagrafica corretta (F0 seed).
-// Coerente col mandato: CleanEnergy CM 9,20; COPX/URA in USD.
-const PRESETS: Record<string, { qty: number; avg: number; price: number; fx?: number; include: boolean }> = {
-  WORLDCORE: { qty: 0, avg: 0, price: 0, include: false },
-  QUALITY:   { qty: 0, avg: 0, price: 0, include: false },
-  VALUE:     { qty: 0, avg: 0, price: 0, include: false },
-  NASDAQ:    { qty: 0, avg: 0, price: 0, fx: 1.08, include: false },
-  DEFENSE:   { qty: 0, avg: 0, price: 0, include: false },
-  UTILITIES: { qty: 0, avg: 0, price: 0, include: false },
-  COPPER:    { qty: 0, avg: 0, price: 0, fx: 1.08, include: false },
-  URANIUM:   { qty: 0, avg: 0, price: 0, fx: 1.08, include: false },
-  CLEAN:     { qty: 0, avg: 9.20, price: 0, fx: 1.08, include: false },
-  GOLD:      { qty: 0, avg: 0, price: 0, include: false },
-  XEON:      { qty: 0, avg: 100, price: 100, include: true }, // MONETARY: default strumento
+/**
+ * Preset SOLO su costo medio e flag di inclusione — MAI sulla valuta,
+ * che va SEMPRE letta dall'anagrafica persistita (`instruments.currency`).
+ * Convenzione FX: EUR per 1 unità di valuta estera.
+ *   • 1 USD ≈ 0.9259 EUR (proposta di default, l'utente conferma).
+ *   • 1.08 è la convenzione INVERSA (USD-per-EUR) e non deve mai essere usata.
+ */
+const DEFAULT_FX_EUR_PER_UNIT: Partial<Record<string, string>> = {
+  USD: '0.9259',
+  CHF: '1.05',
+};
+const PRESETS: Record<string, { qty: number; avg: number; price: number; include: boolean }> = {
+  WORLDCORE: { qty: 0, avg: 0,     price: 0,   include: false },
+  QUALITY:   { qty: 0, avg: 0,     price: 0,   include: false },
+  VALUE:     { qty: 0, avg: 0,     price: 0,   include: false },
+  NASDAQ:    { qty: 0, avg: 0,     price: 0,   include: false },
+  DEFENSE:   { qty: 0, avg: 0,     price: 0,   include: false },
+  UTILITIES: { qty: 0, avg: 0,     price: 0,   include: false },
+  COPPER:    { qty: 0, avg: 0,     price: 0,   include: false },
+  URANIUM:   { qty: 0, avg: 0,     price: 0,   include: false },
+  CLEAN:     { qty: 0, avg: 9.20,  price: 0,   include: false },
+  GOLD:      { qty: 0, avg: 0,     price: 0,   include: false },
+  XEON:      { qty: 0, avg: 100,   price: 100, include: true },
 };
 
 interface Row {
@@ -44,9 +53,25 @@ function todayFirstOfMonth(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
-function useBatchKey() {
-  // Chiave stabile per l'intera vita del wizard (retry-safe).
-  return useMemo(() => crypto.randomUUID(), []);
+/**
+ * batchKey persistente in sessionStorage, per utente+portfolio+bozza.
+ * Sopravvive a remount, refresh e "risposte di rete perse". Eliminato solo
+ * quando la rilettura server conferma che la migrazione è completata.
+ */
+function usePersistentBatchKey(userId: string | null, portfolioId: string | null) {
+  return useMemo(() => {
+    if (!userId || !portfolioId) return null;
+    const k = `migration:batchKey:${userId}:${portfolioId}`;
+    let v = sessionStorage.getItem(k);
+    if (!v) {
+      v = crypto.randomUUID();
+      sessionStorage.setItem(k, v);
+    }
+    return v;
+  }, [userId, portfolioId]);
+}
+function clearBatchKey(userId: string, portfolioId: string) {
+  sessionStorage.removeItem(`migration:batchKey:${userId}:${portfolioId}`);
 }
 
 export function MigrationWizard({ onDone }: { onDone: () => void }) {
@@ -59,20 +84,26 @@ export function MigrationWizard({ onDone }: { onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const [canAmend, setCanAmend] = useState(false);
   const [origBatchId, setOrigBatchId] = useState<string | null>(null);
-  const batchKey = useBatchKey();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [portfolioId, setPortfolioId] = useState<string | null>(null);
+  const batchKey = usePersistentBatchKey(userId, portfolioId);
 
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setUserId(user.id);
       const { data: pf } = await supabase.from('portfolios').select('id').eq('user_id', user.id).maybeSingle();
       if (!pf) return;
+      setPortfolioId(pf.id);
       const { data: ins } = await supabase.from('instruments')
         .select('id,ticker,name,currency,instrument_type').eq('portfolio_id', pf.id).order('ticker');
       const list = (ins ?? []) as Instrument[];
       setInstruments(list);
       setRows(list.map((i) => {
         const preset = PRESETS[i.ticker] ?? { qty: 0, avg: 0, price: 0, include: false };
+        // La valuta arriva SEMPRE dall'anagrafica persistita, mai da preset locali.
+        const fxDefault = i.currency === 'EUR' ? '1' : (DEFAULT_FX_EUR_PER_UNIT[i.currency] ?? '');
         return {
           instrument_id: i.id,
           ticker: i.ticker,
@@ -81,7 +112,7 @@ export function MigrationWizard({ onDone }: { onDone: () => void }) {
           quantity: String(preset.qty),
           average_cost_eur: String(preset.avg),
           opening_price_ccy: String(preset.price),
-          opening_fx: i.currency === 'EUR' ? '1' : String(preset.fx ?? ''),
+          opening_fx: fxDefault,
         };
       }));
 
@@ -100,7 +131,13 @@ export function MigrationWizard({ onDone }: { onDone: () => void }) {
     setRows((r) => r.map((row, i) => i === idx ? { ...row, ...patch } : row));
   }
 
+  function finish() {
+    if (userId && portfolioId) clearBatchKey(userId, portfolioId);
+    onDone();
+  }
+
   async function confirmBlank() {
+    if (busy || !batchKey) return;   // no double submit
     setBusy(true);
     try {
       const cash = Number(openingCash) || 0;
@@ -110,13 +147,14 @@ export function MigrationWizard({ onDone }: { onDone: () => void }) {
       });
       if (error) throw error;
       toast({ title: 'Portafoglio inizializzato' });
-      onDone();
+      finish();
     } catch (err) {
       toast({ title: 'Errore', description: (err as Error).message, variant: 'destructive' });
     } finally { setBusy(false); }
   }
 
   async function confirmImport() {
+    if (busy || !batchKey) return;
     setBusy(true);
     try {
       const positions = rows.filter((r) => r.include && Number(r.quantity) > 0).map((r) => ({
@@ -146,7 +184,7 @@ export function MigrationWizard({ onDone }: { onDone: () => void }) {
       const { error } = await supabase.rpc(rpc, { _key: batchKey, _payload: body as never });
       if (error) throw error;
       toast({ title: mode === 'amend' ? 'Importazione corretta' : 'Importazione completata' });
-      onDone();
+      finish();
     } catch (err) {
       toast({ title: 'Errore', description: (err as Error).message, variant: 'destructive' });
     } finally { setBusy(false); }
@@ -218,7 +256,19 @@ export function MigrationWizard({ onDone }: { onDone: () => void }) {
                   <TableCell><Input type="number" step="1" value={r.quantity} onChange={(e) => updateRow(i, { quantity: e.target.value })} disabled={!r.include} /></TableCell>
                   <TableCell><Input type="number" step="0.0001" value={r.average_cost_eur} onChange={(e) => updateRow(i, { average_cost_eur: e.target.value })} disabled={!r.include} /></TableCell>
                   <TableCell><Input type="number" step="0.0001" value={r.opening_price_ccy} onChange={(e) => updateRow(i, { opening_price_ccy: e.target.value })} disabled={!r.include} /></TableCell>
-                  <TableCell><Input type="number" step="0.0001" value={r.opening_fx} onChange={(e) => updateRow(i, { opening_fx: e.target.value })} disabled={!r.include || r.currency === 'EUR'} /></TableCell>
+                  <TableCell>
+                    {r.currency === 'EUR' ? (
+                      <span className="text-xs text-muted-foreground">— (EUR)</span>
+                    ) : (
+                      <div className="space-y-1">
+                        <Input type="number" step="0.0001" value={r.opening_fx}
+                          onChange={(e) => updateRow(i, { opening_fx: e.target.value })} disabled={!r.include} />
+                        <div className="text-xs text-muted-foreground">
+                          1 {r.currency} = {r.opening_fx || '—'} EUR
+                        </div>
+                      </div>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
