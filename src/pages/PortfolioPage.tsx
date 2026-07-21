@@ -37,6 +37,8 @@ import {
 import { SLEEVES, PortfolioPosition, Instrument, Transaction } from '@/types/portfolio';
 import { useSignalEngine } from '@/contexts/SignalEngineContext';
 import { useAppState } from '@/contexts/AppStateContext';
+import { useAllAlerts } from '@/hooks/useAllAlerts';
+import { FX_EURUSD } from '@/lib/mockData';
 import { IncreasePositionModal } from '@/components/portfolio/IncreasePositionModal';
 import { DecreasePositionModal } from '@/components/portfolio/DecreasePositionModal';
 import { ClosePositionModal } from '@/components/portfolio/ClosePositionModal';
@@ -64,7 +66,8 @@ interface EnrichedPosition {
 export default function PortfolioPage() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { positions, setPositions, instruments, setInstruments, transactions, setTransactions, alerts, resolveAlert, addClosedPosition } = useAppState();
+  const { positions, setPositions, instruments, setInstruments, transactions, setTransactions, resolveAlert, addClosedPosition } = useAppState();
+  const alerts = useAllAlerts();
   const { finalRegime } = useSignalEngine();
   const [showOnlyActive, setShowOnlyActive] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -107,9 +110,11 @@ export default function PortfolioPage() {
         
         const currentWeight = position.marketValueEur / totalValue;
         const targetWeight = target?.baseWeight || 0;
-        const delta = targetWeight - currentWeight;
+        // Convention: delta = current − target (positive ⇒ sovrappeso).
+        const delta = currentWeight - targetWeight;
         const deltaEur = delta * totalValue;
-        const suggestedTradeEur = Math.round(deltaEur / 50) * 50;
+        // Trade suggerito = riporta a target: −delta × totalValue (positivo ⇒ COMPRA).
+        const suggestedTradeEur = Math.round((-deltaEur) / 50) * 50;
         
         const lastPrice = position.lastPrice || (position.marketValueEur / (position.quantity || 1));
         const costBasis = (position.averageBuyPrice || lastPrice) * (position.quantity || 1);
@@ -529,13 +534,13 @@ export default function PortfolioPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      €{enriched.position.averageBuyPrice?.toFixed(2) || '-'}
+                      {enriched.instrument.currency === 'USD' ? '$' : enriched.instrument.currency === 'CHF' ? '₣' : '€'}{enriched.position.averageBuyPrice?.toFixed(2) || '-'}
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       {enriched.position.quantity?.toLocaleString('it-IT') || '-'}
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      €{enriched.lastPrice.toFixed(2)}
+                      {enriched.instrument.currency === 'USD' ? '$' : enriched.instrument.currency === 'CHF' ? '₣' : '€'}{enriched.lastPrice.toFixed(2)}
                     </TableCell>
                     <TableCell className="text-right font-mono font-medium">
                       €{enriched.position.marketValueEur.toLocaleString('it-IT')}

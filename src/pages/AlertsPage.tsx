@@ -9,8 +9,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { defaultStrategyConfig } from '@/lib/mockData';
 import { useAppState } from '@/contexts/AppStateContext';
+import { useAllAlerts } from '@/hooks/useAllAlerts';
 import { Alert, AlertSeverity } from '@/types/portfolio';
 import { useAlertNavigation } from '@/hooks/useAlertNavigation';
 import { getAlertRoutingConfig } from '@/lib/alertRouting';
@@ -27,7 +27,8 @@ export default function AlertsPage() {
   const { navigateToResolve, getActionLabel, getDescription, getDestinationPreview } = useAlertNavigation();
   const [filter, setFilter] = useState<AlertSeverity | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'RESOLVED'>('ALL');
-  const { alerts, resolveAlert } = useAppState();
+  const { resolveAlert, strategyConfig } = useAppState();
+  const alerts = useAllAlerts();
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -59,37 +60,37 @@ export default function AlertsPage() {
       name: 'Regime MSCI/Gold',
       description: 'Cambia allocazione quando il ratio MSCI/Gold incrocia la media mobile',
       params: [
-        { label: 'Mesi SMA', value: defaultStrategyConfig.smaMonths },
+        { label: 'Mesi SMA', value: strategyConfig.smaMonths },
       ]
     },
     {
       name: 'Eleggibilità Tema',
       description: 'Un tema è eleggibile per il tilt se sottoperforma MSCI World e ha trend positivo',
       params: [
-        { label: 'Soglia sottoperformance', value: `${(defaultStrategyConfig.underperformanceThreshold * 100).toFixed(0)}%` },
-        { label: 'SMA prezzo', value: `${defaultStrategyConfig.smaMonths} mesi` },
+        { label: 'Soglia sottoperformance', value: `${(strategyConfig.underperformanceThreshold * 100).toFixed(0)}%` },
+        { label: 'SMA prezzo', value: `${strategyConfig.smaMonths} mesi` },
       ]
     },
     {
       name: 'Tilt Contrarian',
       description: 'Bonus percentuale applicato ai temi eleggibili, sottratto dal cash',
       params: [
-        { label: 'Bonus per tema', value: `${(defaultStrategyConfig.themeBonusPercent * 100).toFixed(0)}%` },
-        { label: 'Max temi', value: defaultStrategyConfig.maxThemes },
+        { label: 'Bonus per tema', value: `${(strategyConfig.themeBonusPercent * 100).toFixed(0)}%` },
+        { label: 'Max temi', value: strategyConfig.maxThemes },
       ]
     },
     {
       name: 'Take Profit Anti-Euforia',
       description: 'Trigger di vendita quando un tema supera il target di una soglia relativa',
       params: [
-        { label: 'Soglia take profit', value: `+${(defaultStrategyConfig.takeProfitThreshold * 100).toFixed(0)}%` },
+        { label: 'Soglia take profit', value: `+${(strategyConfig.takeProfitThreshold * 100).toFixed(0)}%` },
       ]
     },
     {
       name: 'Arrotondamento Trade',
       description: 'I trade suggeriti vengono arrotondati per facilitare l\'esecuzione',
       params: [
-        { label: 'Arrotondamento', value: `€${defaultStrategyConfig.tradeRoundingAmount}` },
+        { label: 'Arrotondamento', value: `€${strategyConfig.tradeRoundingAmount}` },
       ]
     },
   ];
