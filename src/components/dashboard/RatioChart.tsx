@@ -1,7 +1,8 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { ratioHistory } from '@/lib/mockData';
+import { useSignalEngine } from '@/contexts/SignalEngineContext';
 
 export function RatioChart() {
+  const { ratioHistory } = useSignalEngine();
   const latestSMA = ratioHistory[ratioHistory.length - 1]?.sma10;
 
   return (
