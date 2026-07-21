@@ -53,8 +53,9 @@ export function DecreasePositionModal({ open, onOpenChange, position, onConfirm 
       setPrice(position.lastPrice.toFixed(2));
       if (useSuggested && position.suggestedTradeEur < 0) {
         const suggestedSell = Math.abs(position.suggestedTradeEur);
-        setAmount(suggestedSell.toString());
-        setQuantity(Math.floor(suggestedSell / position.lastPrice).toString());
+        const qty = Math.floor(suggestedSell / position.lastPrice);
+        setQuantity(qty.toString());
+        setAmount((qty * position.lastPrice).toFixed(2));
       }
       if (sellAll) {
         setAmount(position.position.marketValueEur.toString());
@@ -63,12 +64,32 @@ export function DecreasePositionModal({ open, onOpenChange, position, onConfirm 
     }
   }, [position, useSuggested, sellAll]);
 
-  useEffect(() => {
-    if (amount && price && parseFloat(price) > 0 && !sellAll) {
-      const qty = Math.floor(parseFloat(amount) / parseFloat(price));
-      setQuantity(qty.toString());
+  const handleAmountChange = (v: string) => {
+    setAmount(v);
+    const p = parseFloat(price);
+    const a = parseFloat(v);
+    if (!isNaN(a) && !isNaN(p) && p > 0) {
+      setQuantity(Math.floor(a / p).toString());
     }
-  }, [amount, price, sellAll]);
+  };
+
+  const handleQuantityChange = (v: string) => {
+    setQuantity(v);
+    const p = parseFloat(price);
+    const q = parseFloat(v);
+    if (!isNaN(q) && !isNaN(p) && p > 0) {
+      setAmount((q * p).toFixed(2));
+    }
+  };
+
+  const handlePriceChange = (v: string) => {
+    setPrice(v);
+    const p = parseFloat(v);
+    const a = parseFloat(amount);
+    if (!isNaN(a) && !isNaN(p) && p > 0) {
+      setQuantity(Math.floor(a / p).toString());
+    }
+  };
 
   const handleConfirm = () => {
     const amountNum = parseFloat(amount) || 0;
@@ -155,7 +176,7 @@ export function DecreasePositionModal({ open, onOpenChange, position, onConfirm 
                 id="amount"
                 type="number"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => handleAmountChange(e.target.value)}
                 placeholder="0.00"
                 disabled={sellAll}
               />
@@ -166,7 +187,7 @@ export function DecreasePositionModal({ open, onOpenChange, position, onConfirm 
                 id="quantity"
                 type="number"
                 value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
+                onChange={(e) => handleQuantityChange(e.target.value)}
                 placeholder="0"
                 disabled={sellAll}
               />
@@ -190,7 +211,7 @@ export function DecreasePositionModal({ open, onOpenChange, position, onConfirm 
                 type="number"
                 step="0.01"
                 value={price}
-                onChange={(e) => setPrice(e.target.value)}
+                onChange={(e) => handlePriceChange(e.target.value)}
                 placeholder="0.00"
               />
             </div>
@@ -224,7 +245,7 @@ export function DecreasePositionModal({ open, onOpenChange, position, onConfirm 
           <Button 
             variant="destructive"
             onClick={handleConfirm}
-            disabled={!amount || !quantity || !price || parseFloat(amount) <= 0}
+            disabled={!amount || !quantity || !price || parseFloat(amount) <= 0 || exceedsMax}
           >
             Conferma Vendita
           </Button>
