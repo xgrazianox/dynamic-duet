@@ -25,7 +25,7 @@ export default function RiskOffPage() {
             Portafoglio Target RISK-OFF
           </h1>
           <p className="text-muted-foreground mt-1">
-            Allocazione quando Ratio MSCI/Gold ≤ SMA(10)
+            Allocazione applicata quando il regime finale del Signal Engine è RISK-OFF
           </p>
         </div>
         {isActive && (

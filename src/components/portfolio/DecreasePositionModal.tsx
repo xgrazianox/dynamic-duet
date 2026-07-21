@@ -13,7 +13,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { TrendingDown, AlertTriangle } from 'lucide-react';
+import { TrendingDown, AlertTriangle, Info } from 'lucide-react';
+
+const FX_EURUSD = 1.08;
+const fxFor = (ccy: 'EUR' | 'USD' | 'CHF') => (ccy === 'USD' ? FX_EURUSD : 1);
 
 interface EnrichedPosition {
   position: {
@@ -69,7 +72,8 @@ export function DecreasePositionModal({ open, onOpenChange, position, onConfirm 
     const p = parseFloat(price);
     const a = parseFloat(v);
     if (!isNaN(a) && !isNaN(p) && p > 0) {
-      setQuantity(Math.floor(a / p).toString());
+      const fx = position ? fxFor(position.instrument.currency) : 1;
+      setQuantity(Math.floor((a * fx) / p).toString());
     }
   };
 
@@ -78,7 +82,8 @@ export function DecreasePositionModal({ open, onOpenChange, position, onConfirm 
     const p = parseFloat(price);
     const q = parseFloat(v);
     if (!isNaN(q) && !isNaN(p) && p > 0) {
-      setAmount((q * p).toFixed(2));
+      const fx = position ? fxFor(position.instrument.currency) : 1;
+      setAmount(((q * p) / fx).toFixed(2));
     }
   };
 
@@ -87,7 +92,8 @@ export function DecreasePositionModal({ open, onOpenChange, position, onConfirm 
     const p = parseFloat(v);
     const a = parseFloat(amount);
     if (!isNaN(a) && !isNaN(p) && p > 0) {
-      setQuantity(Math.floor(a / p).toString());
+      const fx = position ? fxFor(position.instrument.currency) : 1;
+      setQuantity(Math.floor((a * fx) / p).toString());
     }
   };
 
@@ -119,6 +125,7 @@ export function DecreasePositionModal({ open, onOpenChange, position, onConfirm 
   const maxValue = position.position.marketValueEur;
   const requestedQty = parseFloat(quantity) || 0;
   const exceedsMax = requestedQty > maxQuantity;
+  const isNonEur = position.instrument.currency !== 'EUR';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -225,6 +232,13 @@ export function DecreasePositionModal({ open, onOpenChange, position, onConfirm 
               />
             </div>
           </div>
+
+          {isNonEur && (
+            <div className="flex items-start gap-2 text-xs text-muted-foreground p-2 bg-secondary/40 rounded">
+              <Info className="h-3.5 w-3.5 mt-0.5" />
+              <span>Cambio applicato: 1 EUR = {fxFor(position.instrument.currency)} {position.instrument.currency}.</span>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="notes">Note</Label>
