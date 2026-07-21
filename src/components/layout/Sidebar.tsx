@@ -36,8 +36,8 @@ export function Sidebar() {
             <PieChart className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-foreground">AlloStrat</h1>
-            <p className="text-xs text-muted-foreground">Dynamic Allocation</p>
+            <h1 className="text-lg font-semibold text-foreground">Regime Navigator</h1>
+            <p className="text-xs text-muted-foreground">Allocazione Dinamica</p>
           </div>
         </div>
 
