@@ -513,7 +513,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _idem_begin: {
+        Args: { _hash: string; _key: string; _pid: string; _rpc: string }
+        Returns: Record<string, unknown>
+      }
+      _idem_commit: {
+        Args: { _mreq_id: string; _result: Json }
+        Returns: undefined
+      }
+      _owned_portfolio: { Args: never; Returns: string }
+      _replay_check: { Args: { _pid: string }; Returns: undefined }
+      amend_opening_import: {
+        Args: { _key: string; _payload: Json }
+        Returns: Json
+      }
       bootstrap_user_data: { Args: { _user_id: string }; Returns: string }
+      import_opening_balances: {
+        Args: { _key: string; _payload: Json }
+        Returns: Json
+      }
+      register_operation: {
+        Args: { _key: string; _payload: Json }
+        Returns: Json
+      }
+      register_reversal: {
+        Args: { _key: string; _payload: Json }
+        Returns: Json
+      }
     }
     Enums: {
       currency_code: "EUR" | "USD" | "CHF"
