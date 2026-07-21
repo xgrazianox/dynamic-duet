@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Radio, RefreshCw, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SignalAPanel } from '@/components/signals/SignalAPanel';
@@ -6,11 +7,44 @@ import { SignalBPanel } from '@/components/signals/SignalBPanel';
 import { DecisionPanel } from '@/components/signals/DecisionPanel';
 import { DecisionMode } from '@/types/portfolio';
 import { useSignalEngine } from '@/contexts/SignalEngineContext';
+import { useAppState } from '@/contexts/AppStateContext';
+import { parseDeepLinkParams } from '@/lib/alertRouting';
 import { toast } from 'sonner';
 
 export default function SignalsPage() {
   const { config, engineResult, setDecisionMode } = useSignalEngine();
+  const { resolveAlert } = useAppState();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [highlightedPanel, setHighlightedPanel] = useState<string | null>(null);
+  const decisionRef = useRef<HTMLDivElement>(null);
+  const signalARef = useRef<HTMLDivElement>(null);
+  const signalBRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const dl = parseDeepLinkParams(searchParams);
+    if (dl.panel) {
+      setHighlightedPanel(dl.panel);
+      setTimeout(() => {
+        const el =
+          dl.panel === 'signalA' ? signalARef.current :
+          dl.panel === 'signalB' ? signalBRef.current :
+          decisionRef.current;
+        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+      setTimeout(() => setHighlightedPanel(null), 3000);
+    }
+    if (dl.alertId) {
+      resolveAlert(dl.alertId);
+      const next = new URLSearchParams(searchParams);
+      next.delete('alertId');
+      next.delete('panel');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, resolveAlert, setSearchParams]);
+
+  const ringClass = (name: string) =>
+    highlightedPanel === name ? 'ring-2 ring-primary rounded-lg animate-pulse' : '';
 
   const handleModeChange = (mode: DecisionMode) => {
     setDecisionMode(mode);
@@ -75,17 +109,23 @@ export default function SignalsPage() {
       </div>
       
       {/* Decision Layer (Top for quick view) */}
-      <DecisionPanel 
-        result={engineResult.decision}
-        currentMode={config.decision.mode}
-        onModeChange={handleModeChange}
-      />
-      
+      <div ref={decisionRef} className={ringClass('decision')}>
+        <DecisionPanel 
+          result={engineResult.decision}
+          currentMode={config.decision.mode}
+          onModeChange={handleModeChange}
+        />
+      </div>
+
       {/* System A Panel */}
-      <SignalAPanel result={engineResult.signalA} />
-      
+      <div ref={signalARef} className={ringClass('signalA')}>
+        <SignalAPanel result={engineResult.signalA} />
+      </div>
+
       {/* System B Panel */}
-      <SignalBPanel result={engineResult.signalB} />
+      <div ref={signalBRef} className={ringClass('signalB')}>
+        <SignalBPanel result={engineResult.signalB} />
+      </div>
     </div>
   );
 }
