@@ -1,4 +1,4 @@
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, X, Sparkles, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Transaction, SLEEVES } from '@/types/portfolio';
+import { Transaction, TransactionType, SLEEVES } from '@/types/portfolio';
 
 interface TransactionsHistoryProps {
   transactions: Transaction[];
@@ -19,6 +19,44 @@ export function TransactionsHistory({ transactions }: TransactionsHistoryProps) 
   const sortedTransactions = [...transactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
+
+  const typeMeta: Record<TransactionType, { label: string; icon: JSX.Element; badgeClass: string; amountClass: string; sign: string }> = {
+    BUY: {
+      label: 'Acquisto',
+      icon: <ArrowUpRight className="h-3 w-3 mr-1" />,
+      badgeClass: 'bg-risk-on/20 text-risk-on',
+      amountClass: 'text-risk-on',
+      sign: '+',
+    },
+    SELL: {
+      label: 'Vendita',
+      icon: <ArrowDownRight className="h-3 w-3 mr-1" />,
+      badgeClass: 'bg-risk-off/20 text-risk-off',
+      amountClass: 'text-risk-off',
+      sign: '-',
+    },
+    CLOSE: {
+      label: 'Chiusura',
+      icon: <X className="h-3 w-3 mr-1" />,
+      badgeClass: 'bg-destructive/20 text-destructive',
+      amountClass: 'text-risk-off',
+      sign: '-',
+    },
+    INIT: {
+      label: 'Posizione iniziale',
+      icon: <Sparkles className="h-3 w-3 mr-1" />,
+      badgeClass: 'bg-primary/20 text-primary',
+      amountClass: 'text-foreground',
+      sign: '',
+    },
+    EDIT: {
+      label: 'Rettifica',
+      icon: <Pencil className="h-3 w-3 mr-1" />,
+      badgeClass: 'bg-warning/20 text-warning',
+      amountClass: 'text-foreground',
+      sign: '',
+    },
+  };
 
   return (
     <Card>
@@ -47,16 +85,9 @@ export function TransactionsHistory({ transactions }: TransactionsHistoryProps) 
                   {new Date(tx.date).toLocaleDateString('it-IT')}
                 </TableCell>
                 <TableCell>
-                  <Badge 
-                    variant={tx.type === 'BUY' ? 'default' : 'secondary'}
-                    className={tx.type === 'BUY' ? 'bg-risk-on/20 text-risk-on' : 'bg-risk-off/20 text-risk-off'}
-                  >
-                    {tx.type === 'BUY' ? (
-                      <ArrowUpRight className="h-3 w-3 mr-1" />
-                    ) : (
-                      <ArrowDownRight className="h-3 w-3 mr-1" />
-                    )}
-                    {tx.type === 'BUY' ? 'Acquisto' : 'Vendita'}
+                  <Badge variant="secondary" className={typeMeta[tx.type].badgeClass}>
+                    {typeMeta[tx.type].icon}
+                    {typeMeta[tx.type].label}
                   </Badge>
                 </TableCell>
                 <TableCell className="font-medium">
@@ -69,8 +100,8 @@ export function TransactionsHistory({ transactions }: TransactionsHistoryProps) 
                   €{tx.pricePerUnit.toFixed(2)}
                 </TableCell>
                 <TableCell className="text-right font-mono font-medium">
-                  <span className={tx.type === 'BUY' ? 'text-risk-on' : 'text-risk-off'}>
-                    {tx.type === 'BUY' ? '+' : '-'}€{tx.totalValueEur.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                  <span className={typeMeta[tx.type].amountClass}>
+                    {typeMeta[tx.type].sign}€{tx.totalValueEur.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
                   </span>
                 </TableCell>
               </TableRow>
