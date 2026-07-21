@@ -1,10 +1,12 @@
 import { TrendingUp, Info } from 'lucide-react';
 import { mockTargetsRiskOn, mockStrategyState } from '@/lib/mockData';
 import { SLEEVES } from '@/types/portfolio';
+import { useSignalEngine } from '@/contexts/SignalEngineContext';
 
 export default function RiskOnPage() {
   const totalWeight = mockTargetsRiskOn.reduce((sum, t) => sum + t.baseWeight, 0);
-  const isActive = mockStrategyState.regime === 'RISK_ON';
+  const { finalRegime } = useSignalEngine();
+  const isActive = finalRegime === 'RISK_ON';
 
   // Group by category
   const categories = ['CORE', 'FACTOR', 'THEME', 'HEDGE', 'CASH'];

@@ -18,13 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { mockInstruments as initialInstruments, mockPricePoints } from '@/lib/mockData';
+import { mockPricePoints } from '@/lib/mockData';
+import { useAppState } from '@/contexts/AppStateContext';
 import { SLEEVES, Instrument, SleeveCategory } from '@/types/portfolio';
 import { toast } from '@/hooks/use-toast';
 
 export default function InputsPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [instruments, setInstruments] = useState<Instrument[]>(initialInstruments);
+  const { instruments, setInstruments } = useAppState();
   const [editingInstrument, setEditingInstrument] = useState<Instrument | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isNewInstrument, setIsNewInstrument] = useState(false);

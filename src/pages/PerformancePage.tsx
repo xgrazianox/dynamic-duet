@@ -9,14 +9,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { mockClosedPositions, calculatePLSummary, mockTransactions, mockInstruments } from '@/lib/mockData';
+import { mockClosedPositions, calculatePLSummary } from '@/lib/mockData';
+import { useAppState } from '@/contexts/AppStateContext';
 import { TransactionForm } from '@/components/transactions/TransactionForm';
 import { TransactionsHistory } from '@/components/transactions/TransactionsHistory';
 import { SLEEVES, Transaction } from '@/types/portfolio';
 import { useState } from 'react';
 
 export default function PerformancePage() {
-  const [transactions, setTransactions] = useState(mockTransactions);
+  const { transactions, setTransactions, instruments } = useAppState();
   const [closedPositions] = useState(mockClosedPositions);
   
   const summary = calculatePLSummary(closedPositions);
@@ -40,12 +41,12 @@ export default function PerformancePage() {
         </div>
         <div className="flex gap-3">
           <TransactionForm 
-            instruments={mockInstruments} 
+            instruments={instruments} 
             onSubmit={handleNewTransaction}
             defaultType="BUY"
           />
           <TransactionForm 
-            instruments={mockInstruments} 
+            instruments={instruments} 
             onSubmit={handleNewTransaction}
             defaultType="SELL"
           />

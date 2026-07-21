@@ -7,25 +7,23 @@ import {
   Alert, 
   TradeSuggestion,
   StrategyConfig,
-  Regime,
   Transaction,
   ClosedPosition
 } from '@/types/portfolio';
+import {
+  SHARED_DATES,
+  SHARED_MSCI_PRICES,
+  SHARED_GOLD_PRICES,
+  SHARED_CURRENT_RATIO,
+  SHARED_SMA10,
+  generateSeededPrices,
+} from '@/lib/sharedPrices';
 
-// Generate 24 months of mock price data
-const generateMonthlyPrices = (basePrice: number, volatility: number, months: number = 24): number[] => {
-  const prices: number[] = [basePrice];
-  for (let i = 1; i < months; i++) {
-    const change = (Math.random() - 0.5) * 2 * volatility * prices[i - 1];
-    prices.push(Math.max(prices[i - 1] + change, basePrice * 0.5));
-  }
-  return prices;
-};
-
+// Build a YYYY-MM-01 string N months ago without setMonth overflow bugs.
 const getMonthDate = (monthsAgo: number): string => {
-  const date = new Date();
-  date.setMonth(date.getMonth() - monthsAgo);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 };
 
 const getDateString = (daysAgo: number): string => {
@@ -49,21 +47,28 @@ export const mockInstruments: Instrument[] = [
   { id: '11', name: 'Xtrackers EUR Overnight Rate', ticker: 'XEON.DE', currency: 'EUR', category: 'CASH', sleeveKey: 'ESTR_CASH', provider: 'Yahoo Finance', isActive: true },
 ];
 
-// Generate mock price history
-const msciPrices = generateMonthlyPrices(85, 0.03, 24);
-const goldPrices = generateMonthlyPrices(55, 0.025, 24);
-
+// Price history — MSCI (id '1') and Gold (id '10') use the SHARED deterministic
+// series that also feeds the Signal Engine; other instruments use their own
+// deterministic seeds so they don't shuffle on every reload.
 export const mockPricePoints: PricePoint[] = [];
 mockInstruments.forEach((instrument, idx) => {
-  const basePrices = idx === 0 ? msciPrices : 
-                     idx === 9 ? goldPrices : 
-                     generateMonthlyPrices(50 + Math.random() * 100, 0.04, 24);
-  
+  let basePrices: number[];
+  if (instrument.id === '1') {
+    basePrices = SHARED_MSCI_PRICES;
+  } else if (instrument.id === '10') {
+    basePrices = SHARED_GOLD_PRICES;
+  } else {
+    // Deterministic per-instrument series (seed derived from id)
+    const seed = 1000 + idx * 137;
+    const base = 50 + ((idx * 17) % 100);
+    basePrices = generateSeededPrices(seed, base, 0.04, 24);
+  }
+
   basePrices.forEach((price, monthIdx) => {
     mockPricePoints.push({
       id: `${instrument.id}-${monthIdx}`,
       instrumentId: instrument.id,
-      date: getMonthDate(23 - monthIdx),
+      date: SHARED_DATES[monthIdx],
       closePrice: Math.round(price * 100) / 100,
       source: 'AUTO_API',
       createdAt: new Date().toISOString(),
@@ -71,22 +76,13 @@ mockInstruments.forEach((instrument, idx) => {
   });
 });
 
-// Calculate MSCI/Gold ratio and SMA
-
-const calculateRatioAndSMA = (): { currentRatio: number; sma10: number; regime: Regime } => {
-  const ratios: number[] = [];
-  for (let i = 0; i < 24; i++) {
-    ratios.push(msciPrices[i] / goldPrices[i]);
-  }
-  
-  const currentRatio = ratios[ratios.length - 1];
-  const sma10 = ratios.slice(-10).reduce((a, b) => a + b, 0) / 10;
-  const regime: Regime = currentRatio > sma10 ? 'RISK_ON' : 'RISK_OFF';
-  
-  return { currentRatio, sma10, regime };
-};
-
-const { currentRatio, sma10, regime } = calculateRatioAndSMA();
+// Snapshot values derived from the SHARED series so the Dati & Prezzi page,
+// the RegimeCard and the alerts all quote the same numbers. The regime itself
+// is NOT used as the source of truth for pages (they read useSignalEngine().finalRegime);
+// this snapshot is only a best-effort label for static mock data.
+const currentRatio = SHARED_CURRENT_RATIO;
+const sma10 = SHARED_SMA10;
+const snapshotRegime: 'RISK_ON' | 'RISK_OFF' = currentRatio > sma10 ? 'RISK_ON' : 'RISK_OFF';
 
 // Mock portfolio positions (current holdings)
 export const mockPositions: PortfolioPosition[] = [
@@ -133,7 +129,7 @@ export const mockStrategyState: StrategyState = {
   asOfDate: getMonthDate(0),
   msciGoldRatio: Math.round(currentRatio * 1000) / 1000,
   sma10Ratio: Math.round(sma10 * 1000) / 1000,
-  regime: regime,
+  regime: snapshotRegime,
   theme1Selected: 'CLEAN_ENERGY',
   theme2Selected: undefined,
   theme1Eligible: true,
@@ -149,7 +145,7 @@ export const mockAlerts: Alert[] = [
     asOfDate: getMonthDate(0), 
     severity: 'INFO', 
     code: 'REGIME_SWITCH', 
-    message: `Regime cambiato a ${regime === 'RISK_ON' ? 'RISK-ON' : 'RISK-OFF'}: Ratio MSCI/Gold (${currentRatio.toFixed(2)}) ${regime === 'RISK_ON' ? '>' : '<'} SMA10 (${sma10.toFixed(2)})`,
+    message: `Regime cambiato a ${snapshotRegime === 'RISK_ON' ? 'RISK-ON' : 'RISK-OFF'}: Ratio MSCI/Gold (${currentRatio.toFixed(2)}) ${snapshotRegime === 'RISK_ON' ? '>' : '<'} SMA10 (${sma10.toFixed(2)})`,
     resolved: false,
     status: 'OPEN',
     resolutionType: 'OPEN_SIGNALS_VIEW',
@@ -282,21 +278,20 @@ export const mockClosedPositions: ClosedPosition[] = [
 export const calculateTradeSuggestions = (
   positions: PortfolioPosition[],
   targets: TargetAllocation[],
-  regime: 'RISK_ON' | 'RISK_OFF'
+  _regime?: 'RISK_ON' | 'RISK_OFF'
 ): TradeSuggestion[] => {
   const totalValue = positions.reduce((sum, p) => sum + p.marketValueEur, 0);
-  const activeTargets = regime === 'RISK_ON' ? mockTargetsRiskOn : mockTargetsRiskOff;
-  
+
   const suggestions: TradeSuggestion[] = [];
-  
-  activeTargets.forEach(target => {
+
+  targets.forEach(target => {
     const position = positions.find(p => p.sleeveKey === target.sleeveKey);
     const currentValue = position?.marketValueEur || 0;
     const currentWeight = currentValue / totalValue;
     const targetWeight = target.baseWeight;
     const deltaWeight = targetWeight - currentWeight;
     const suggestedTrade = deltaWeight * totalValue;
-    
+
     if (Math.abs(deltaWeight) > 0.005) {
       suggestions.push({
         id: `trade-${target.sleeveKey}`,
@@ -311,19 +306,18 @@ export const calculateTradeSuggestions = (
       });
     }
   });
-  
+
   return suggestions.sort((a, b) => Math.abs(b.suggestedTradeEur) - Math.abs(a.suggestedTradeEur));
 };
 
-const safeRegime: 'RISK_ON' | 'RISK_OFF' = regime === 'UNDETERMINED' ? 'RISK_ON' : regime;
-export const mockTradeSuggestions = calculateTradeSuggestions(mockPositions, mockTargetsRiskOn, safeRegime);
+export const mockTradeSuggestions = calculateTradeSuggestions(mockPositions, mockTargetsRiskOn);
 
-// Historical ratio data for chart
-export const ratioHistory = msciPrices.map((msci, i) => ({
-  date: getMonthDate(23 - i),
-  ratio: Math.round((msci / goldPrices[i]) * 1000) / 1000,
-  sma10: i >= 9 
-    ? Math.round((msciPrices.slice(i - 9, i + 1).reduce((a, b, j) => a + b / goldPrices[i - 9 + j], 0) / 10) * 1000) / 1000
+// Historical ratio data for chart (uses the shared series)
+export const ratioHistory = SHARED_MSCI_PRICES.map((msci, i) => ({
+  date: SHARED_DATES[i],
+  ratio: Math.round((msci / SHARED_GOLD_PRICES[i]) * 1000) / 1000,
+  sma10: i >= 9
+    ? Math.round((SHARED_MSCI_PRICES.slice(i - 9, i + 1).reduce((a, b, j) => a + b / SHARED_GOLD_PRICES[i - 9 + j], 0) / 10) * 1000) / 1000
     : null,
 }));
 

@@ -9,7 +9,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { mockAlerts, defaultStrategyConfig } from '@/lib/mockData';
+import { defaultStrategyConfig } from '@/lib/mockData';
+import { useAppState } from '@/contexts/AppStateContext';
 import { Alert, AlertSeverity } from '@/types/portfolio';
 import { useAlertNavigation } from '@/hooks/useAlertNavigation';
 import { getAlertRoutingConfig } from '@/lib/alertRouting';
@@ -26,7 +27,7 @@ export default function AlertsPage() {
   const { navigateToResolve, getActionLabel, getDescription, getDestinationPreview } = useAlertNavigation();
   const [filter, setFilter] = useState<AlertSeverity | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'RESOLVED'>('ALL');
-  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);
+  const { alerts, resolveAlert } = useAppState();
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -37,11 +38,7 @@ export default function AlertsPage() {
   const unresolvedCount = alerts.filter(a => !a.resolved).length;
 
   const handleResolve = (alertId: string) => {
-    setAlerts(prev => prev.map(a => 
-      a.id === alertId 
-        ? { ...a, resolved: true, status: 'RESOLVED' as const, resolvedAt: new Date().toISOString() } 
-        : a
-    ));
+    resolveAlert(alertId);
     toast({
       title: "Alert risolto",
       description: "L'alert è stato marcato come risolto."

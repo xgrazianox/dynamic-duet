@@ -1,45 +1,13 @@
 import { createContext, useContext, useMemo, useState, ReactNode, useCallback } from 'react';
 import { runSignalEngine, SignalEngineResult } from '@/lib/signalEngine';
 import { SignalEngineConfig, defaultSignalEngineConfig, DecisionMode, Regime } from '@/types/portfolio';
+import {
+  SHARED_MSCI_PRICES,
+  SHARED_GOLD_PRICES,
+  SHARED_DATES,
+} from '@/lib/sharedPrices';
 
-// Deterministic PRNG (mulberry32) so prices don't shuffle on every reload.
-function seededRandom(seed: number) {
-  let a = seed >>> 0;
-  return function () {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function generateSeededPrices(seed: number, basePrice: number, volatility: number, months = 24): number[] {
-  const rand = seededRandom(seed);
-  const prices: number[] = [basePrice];
-  for (let i = 1; i < months; i++) {
-    const change = (rand() - 0.5) * 2 * volatility * prices[i - 1];
-    prices.push(Math.max(prices[i - 1] + change, basePrice * 0.5));
-  }
-  return prices;
-}
-
-function buildDates(months = 24): string[] {
-  const dates: string[] = [];
-  const now = new Date();
-  for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    dates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`);
-  }
-  return dates;
-}
-
-// Single, deterministic source of truth for MSCI and Gold monthly closes.
-// Seeds tuned so the demo produces a clear, non-borderline regime.
-export const SHARED_MSCI_PRICES = generateSeededPrices(1337, 85, 0.03, 24);
-export const SHARED_GOLD_PRICES = generateSeededPrices(4242, 55, 0.025, 24);
-export const SHARED_DATES = buildDates(24);
+export { SHARED_MSCI_PRICES, SHARED_GOLD_PRICES, SHARED_DATES };
 
 export interface SignalEngineContextValue {
   config: SignalEngineConfig;
