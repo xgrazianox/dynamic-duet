@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { RefreshCw, Upload, CheckCircle, XCircle, Edit2, Plus, Trash2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,15 +21,57 @@ import {
 } from '@/components/ui/select';
 import { mockPricePoints } from '@/lib/mockData';
 import { useAppState } from '@/contexts/AppStateContext';
+import { parseDeepLinkParams } from '@/lib/alertRouting';
 import { SLEEVES, Instrument, SleeveCategory } from '@/types/portfolio';
 import { toast } from '@/hooks/use-toast';
 
 export default function InputsPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-  const { instruments, setInstruments } = useAppState();
+  const { instruments, setInstruments, resolveAlert } = useAppState();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [editingInstrument, setEditingInstrument] = useState<Instrument | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isNewInstrument, setIsNewInstrument] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isUpdatingPrices, setIsUpdatingPrices] = useState(false);
+  const [pricesHighlighted, setPricesHighlighted] = useState(false);
+  const pricesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const dl = parseDeepLinkParams(searchParams);
+    if (dl.focus === 'prices') {
+      setPricesHighlighted(true);
+      setTimeout(() => pricesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      setTimeout(() => setPricesHighlighted(false), 3000);
+    }
+    if (dl.alertId) {
+      resolveAlert(dl.alertId);
+      const next = new URLSearchParams(searchParams);
+      next.delete('alertId');
+      next.delete('focus');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, resolveAlert, setSearchParams]);
+
+  const handleImportCsv = async () => {
+    setIsImporting(true);
+    await new Promise(r => setTimeout(r, 1200));
+    setIsImporting(false);
+    toast({
+      title: 'Import CSV completato',
+      description: 'Serie prezzi importate (simulazione).',
+    });
+  };
+
+  const handleUpdatePrices = async () => {
+    setIsUpdatingPrices(true);
+    await new Promise(r => setTimeout(r, 1500));
+    setIsUpdatingPrices(false);
+    toast({
+      title: 'Quotazioni aggiornate',
+      description: 'Prezzi mensili sincronizzati dai provider attivi.',
+    });
+  };
 
   const getLatestPrice = (instrumentId: string) => {
     const prices = mockPricePoints
@@ -129,12 +172,12 @@ export default function InputsPage() {
             <Plus className="h-4 w-4" />
             Aggiungi Strumento
           </Button>
-          <Button variant="outline">
-            <Upload className="h-4 w-4" />
+          <Button variant="outline" onClick={handleImportCsv} disabled={isImporting}>
+            <Upload className={`h-4 w-4 ${isImporting ? 'animate-pulse' : ''}`} />
             Importa CSV
           </Button>
-          <Button>
-            <RefreshCw className="h-4 w-4" />
+          <Button onClick={handleUpdatePrices} disabled={isUpdatingPrices}>
+            <RefreshCw className={`h-4 w-4 ${isUpdatingPrices ? 'animate-spin' : ''}`} />
             Aggiorna Quotazioni
           </Button>
         </div>
@@ -215,7 +258,10 @@ export default function InputsPage() {
       </div>
 
       {/* Price History for selected instrument */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div
+        ref={pricesRef}
+        className={`grid grid-cols-1 lg:grid-cols-2 gap-6 rounded-xl transition-all ${pricesHighlighted ? 'ring-2 ring-primary animate-pulse p-2' : ''}`}
+      >
         <div className="rounded-xl border border-border bg-card p-6 card-glow">
           <h3 className="font-semibold mb-4">Serie Prezzi MSCI World</h3>
           <div className="space-y-2 max-h-[300px] overflow-y-auto">
