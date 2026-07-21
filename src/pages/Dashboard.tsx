@@ -69,12 +69,12 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3">
           <TransactionForm 
-            instruments={mockInstruments} 
+            instruments={instruments} 
             onSubmit={handleNewTransaction}
             defaultType="BUY"
           />
           <TransactionForm 
-            instruments={mockInstruments} 
+            instruments={instruments} 
             onSubmit={handleNewTransaction}
             defaultType="SELL"
           />
@@ -107,7 +107,7 @@ export default function Dashboard() {
           sma10={engineResult.signalA.sma}
         />
         <PortfolioSummary positions={positions} />
-        <AlertsPanel alerts={mockAlerts} />
+        <AlertsPanel alerts={alerts} />
       </div>
 
       {/* Allocation Comparison Chart */}

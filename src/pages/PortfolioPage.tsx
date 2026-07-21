@@ -30,16 +30,13 @@ import {
   CheckCircle,
   Info
 } from 'lucide-react';
-import { 
-  mockPositions, 
-  mockInstruments, 
-  mockTargetsRiskOn, 
-  mockTargetsRiskOff, 
-  mockAlerts,
-  mockStrategyState,
-  mockTransactions
+import {
+  mockTargetsRiskOn,
+  mockTargetsRiskOff,
 } from '@/lib/mockData';
 import { SLEEVES, PortfolioPosition, Instrument, Transaction } from '@/types/portfolio';
+import { useSignalEngine } from '@/contexts/SignalEngineContext';
+import { useAppState } from '@/contexts/AppStateContext';
 import { IncreasePositionModal } from '@/components/portfolio/IncreasePositionModal';
 import { DecreasePositionModal } from '@/components/portfolio/DecreasePositionModal';
 import { ClosePositionModal } from '@/components/portfolio/ClosePositionModal';
@@ -67,9 +64,8 @@ interface EnrichedPosition {
 export default function PortfolioPage() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [positions, setPositions] = useState<PortfolioPosition[]>(mockPositions);
-  const [instruments, setInstruments] = useState<Instrument[]>(mockInstruments);
-  const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
+  const { positions, setPositions, instruments, setInstruments, transactions, setTransactions, alerts } = useAppState();
+  const { finalRegime } = useSignalEngine();
   const [showOnlyActive, setShowOnlyActive] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date().toLocaleString('it-IT'));
@@ -89,10 +85,10 @@ export default function PortfolioPage() {
   const highlightedRowRef = useRef<HTMLTableRowElement>(null);
   const [highlightedPositionId, setHighlightedPositionId] = useState<string | null>(null);
 
-  const regime = mockStrategyState.regime;
+  const regime: 'RISK_ON' | 'RISK_OFF' = finalRegime === 'UNDETERMINED' ? 'RISK_ON' : finalRegime;
   const targets = regime === 'RISK_ON' ? mockTargetsRiskOn : mockTargetsRiskOff;
-  const criticalAlerts = mockAlerts.filter(a => a.severity === 'CRITICAL' && !a.resolved).length;
-  const warningAlerts = mockAlerts.filter(a => a.severity === 'WARNING' && !a.resolved).length;
+  const criticalAlerts = alerts.filter(a => a.severity === 'CRITICAL' && !a.resolved).length;
+  const warningAlerts = alerts.filter(a => a.severity === 'WARNING' && !a.resolved).length;
 
   const totalValue = useMemo(() => 
     positions.reduce((sum, p) => sum + p.marketValueEur, 0), 

@@ -1,10 +1,12 @@
 import { Shield, Info } from 'lucide-react';
-import { mockTargetsRiskOff, mockStrategyState } from '@/lib/mockData';
+import { mockTargetsRiskOff } from '@/lib/mockData';
 import { SLEEVES } from '@/types/portfolio';
+import { useSignalEngine } from '@/contexts/SignalEngineContext';
 
 export default function RiskOffPage() {
   const totalWeight = mockTargetsRiskOff.reduce((sum, t) => sum + t.baseWeight, 0);
-  const isActive = mockStrategyState.regime === 'RISK_OFF';
+  const { finalRegime } = useSignalEngine();
+  const isActive = finalRegime === 'RISK_OFF';
 
   // Group by category
   const categories = ['HEDGE', 'CASH', 'FACTOR', 'THEME'];
