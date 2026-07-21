@@ -259,6 +259,30 @@ export default function PortfolioPage() {
     };
     
     setTransactions(prev => [...prev, newTransaction]);
+
+    // Record realized P&L
+    const buyPrice = selectedPosition.position.averageBuyPrice || price;
+    const invested = buyPrice * quantity;
+    const buyDateStr = selectedPosition.position.asOfDate || date;
+    const holdingDays = Math.max(
+      0,
+      Math.floor((new Date(date).getTime() - new Date(buyDateStr).getTime()) / 86400000)
+    );
+    addClosedPosition({
+      id: `cp-${newTransaction.id}`,
+      instrumentId: selectedPosition.instrument.id,
+      sleeveKey: selectedPosition.position.sleeveKey,
+      buyDate: buyDateStr,
+      sellDate: date,
+      buyPrice,
+      sellPrice: price,
+      quantity,
+      investedAmount: invested,
+      soldAmount: amount,
+      profitLossEur: amount - invested,
+      profitLossPercent: invested > 0 ? ((amount - invested) / invested) * 100 : 0,
+      holdingDays,
+    });
     
     // Update position
     setPositions(prev => prev.map(p => {
@@ -304,6 +328,34 @@ export default function PortfolioPage() {
     };
     
     setTransactions(prev => [...prev, newTransaction]);
+
+    // Record realized P&L for full close
+    const qtyClose = selectedPosition.position.quantity || 0;
+    const buyPriceClose = selectedPosition.position.averageBuyPrice || selectedPosition.lastPrice;
+    const investedClose = buyPriceClose * qtyClose;
+    const soldClose = selectedPosition.position.marketValueEur;
+    const buyDateClose = selectedPosition.position.asOfDate || date;
+    const holdingDaysClose = Math.max(
+      0,
+      Math.floor((new Date(date).getTime() - new Date(buyDateClose).getTime()) / 86400000)
+    );
+    if (qtyClose > 0) {
+      addClosedPosition({
+        id: `cp-${newTransaction.id}`,
+        instrumentId: selectedPosition.instrument.id,
+        sleeveKey: selectedPosition.position.sleeveKey,
+        buyDate: buyDateClose,
+        sellDate: date,
+        buyPrice: buyPriceClose,
+        sellPrice: selectedPosition.lastPrice,
+        quantity: qtyClose,
+        investedAmount: investedClose,
+        soldAmount: soldClose,
+        profitLossEur: soldClose - investedClose,
+        profitLossPercent: investedClose > 0 ? ((soldClose - investedClose) / investedClose) * 100 : 0,
+        holdingDays: holdingDaysClose,
+      });
+    }
     
     setPositions(prev => prev.map(p => {
       if (p.id === selectedPosition.position.id) {
