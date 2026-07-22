@@ -148,14 +148,33 @@ export default function PortfolioPage() {
       .sort((a, b) => (a.instr?.name ?? '').localeCompare(b.instr?.name ?? ''));
   }, [state, instrumentById]);
 
+  // Correzione E: se ANCHE UNA posizione con quantità > 0 è missing_price/missing_fx,
+  // valore totale, pesi e P/L non realizzato dipendenti diventano "n/d" a livello pagina.
+  const missingValuations = useMemo(
+    () => (state?.valuations ?? []).filter(
+      (v) => v.status !== 'valued' && v.quantity.gt(0),
+    ),
+    [state],
+  );
+  const hasMissingValuation = missingValuations.length > 0;
+  const missingSummary = useMemo(() => {
+    if (!hasMissingValuation) return '';
+    const names = missingValuations
+      .map((v) => instrumentById.get(v.instrumentId)?.ticker ?? v.instrumentId)
+      .join(', ');
+    return `Dati mancanti su: ${names}`;
+  }, [missingValuations, instrumentById, hasMissingValuation]);
+
   // Peso su totale INCLUSA cassa
   function weightOf(mv: Decimal | null | undefined): string {
+    if (hasMissingValuation) return 'n/d';
     if (mv === null || mv === undefined) return '—';
     if (totalValueEur.isZero()) return '0,0%';
     const w = mv.div(totalValueEur).times(100);
     return `${Number(w.toFixed(1)).toLocaleString('it-IT', { minimumFractionDigits: 1 })}%`;
   }
   function cashWeight(): string {
+    if (hasMissingValuation) return 'n/d';
     if (totalValueEur.isZero()) return '0,0%';
     const w = cashEur.div(totalValueEur).times(100);
     return `${Number(w.toFixed(1)).toLocaleString('it-IT', { minimumFractionDigits: 1 })}%`;
