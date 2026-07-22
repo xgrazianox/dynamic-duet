@@ -18,7 +18,7 @@ export interface PortfolioState {
 export function computePortfolioState(inputs: DomainInputs): PortfolioState {
   const active = replayLedger(inputs.operations);
   const { positions, cash } = projectPositions(active);
-  const valuations = valuePositions(positions, inputs.prices, inputs.asOf);
+  const valuations = valuePositions(positions, inputs.prices, inputs.instruments, inputs.fxRates, inputs.asOf);
   return {
     positions,
     cash,

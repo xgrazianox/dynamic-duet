@@ -1,55 +1,115 @@
-import { D, Decimal, ZERO } from './decimal';
+import { D, Decimal, ONE, ZERO } from './decimal';
 import type { PositionState, CashState } from './positions';
-import type { PriceRow } from './types';
+import type { PriceRow, FxRow, InstrumentRow, CurrencyCode } from './types';
 
-/** Ultima quotazione ≤ asOf (o l'ultima disponibile se asOf non fornito). */
+/** Ultima quotazione ≤ asOf (in valuta NATIVA dello strumento). */
 export function latestPriceFor(
   prices: PriceRow[],
   instrumentId: string,
   asOf?: string,
-): Decimal | null {
+): { price: Decimal; date: string } | null {
   let best: PriceRow | null = null;
   for (const p of prices) {
     if (p.instrument_id !== instrumentId) continue;
     if (asOf && p.price_date > asOf) continue;
     if (!best || p.price_date > best.price_date) best = p;
   }
-  return best ? D(best.close_price) : null;
+  return best ? { price: D(best.close_price), date: best.price_date } : null;
 }
+
+/** Ultimo cambio EUR-per-unit per la valuta ≤ asOf. EUR → sempre 1. */
+export function latestFxFor(
+  fxRates: FxRow[],
+  currency: CurrencyCode,
+  asOf?: string,
+): { fx: Decimal; date: string } | null {
+  if (currency === 'EUR') return { fx: ONE, date: '0001-01-01' };
+  let best: FxRow | null = null;
+  for (const r of fxRates) {
+    if (r.currency !== currency) continue;
+    if (asOf && r.rate_date > asOf) continue;
+    if (!best || r.rate_date > best.rate_date) best = r;
+  }
+  return best ? { fx: D(best.eur_per_unit), date: best.rate_date } : null;
+}
+
+/**
+ * Risultato discriminato: MAI zero per dato mancante.
+ *  - 'valued'         → marketValueEur / unrealizedPnlEur presenti
+ *  - 'missing_price'  → nessun prezzo ≤ asOf
+ *  - 'missing_fx'     → prezzo presente ma nessun FX ≤ asOf per la valuta
+ */
+export type ValuationStatus = 'valued' | 'missing_price' | 'missing_fx';
 
 export interface PositionValuation {
   instrumentId: string;
+  currency: CurrencyCode;
   quantity: Decimal;
   averageCostEur: Decimal;
   totalCostEur: Decimal;
-  lastPriceEur: Decimal | null;
-  marketValueEur: Decimal;         // qty * lastPrice; 0 se prezzo mancante
-  unrealizedPnlEur: Decimal;       // marketValue - totalCost (se prezzo noto)
   realizedPnlEur: Decimal;
+  status: ValuationStatus;
+  lastPriceNative: Decimal | null;
+  lastPriceDate: string | null;
+  fxEurPerUnit: Decimal | null;
+  fxDate: string | null;
+  marketValueEur: Decimal | null;
+  unrealizedPnlEur: Decimal | null;
+  /** Legacy: true SOLO quando status='valued'. NON usare per calcolo. */
   hasPrice: boolean;
 }
 
 export function valuePositions(
   positions: Map<string, PositionState>,
   prices: PriceRow[],
+  instruments: InstrumentRow[],
+  fxRates: FxRow[],
   asOf?: string,
 ): PositionValuation[] {
+  const ccyOf = new Map(instruments.map((i) => [i.id, i.currency]));
   const out: PositionValuation[] = [];
   for (const [id, p] of positions) {
     if (p.quantity.isZero() && p.realizedPnlEur.isZero()) continue;
-    const price = latestPriceFor(prices, id, asOf);
-    const mv = price ? p.quantity.times(price) : ZERO;
-    const upnl = price ? mv.minus(p.totalCostEur) : ZERO;
+    const currency = ccyOf.get(id) ?? 'EUR';
+    const pr = latestPriceFor(prices, id, asOf);
+    if (!pr) {
+      out.push({
+        instrumentId: id, currency,
+        quantity: p.quantity, averageCostEur: p.averageCostEur,
+        totalCostEur: p.totalCostEur, realizedPnlEur: p.realizedPnlEur,
+        status: 'missing_price',
+        lastPriceNative: null, lastPriceDate: null,
+        fxEurPerUnit: null, fxDate: null,
+        marketValueEur: null, unrealizedPnlEur: null,
+        hasPrice: false,
+      });
+      continue;
+    }
+    const fx = latestFxFor(fxRates, currency, asOf);
+    if (!fx) {
+      out.push({
+        instrumentId: id, currency,
+        quantity: p.quantity, averageCostEur: p.averageCostEur,
+        totalCostEur: p.totalCostEur, realizedPnlEur: p.realizedPnlEur,
+        status: 'missing_fx',
+        lastPriceNative: pr.price, lastPriceDate: pr.date,
+        fxEurPerUnit: null, fxDate: null,
+        marketValueEur: null, unrealizedPnlEur: null,
+        hasPrice: false,
+      });
+      continue;
+    }
+    const mv = p.quantity.times(pr.price).times(fx.fx);
+    const upnl = mv.minus(p.totalCostEur);
     out.push({
-      instrumentId: id,
-      quantity: p.quantity,
-      averageCostEur: p.averageCostEur,
-      totalCostEur: p.totalCostEur,
-      lastPriceEur: price,
-      marketValueEur: mv,
-      unrealizedPnlEur: upnl,
-      realizedPnlEur: p.realizedPnlEur,
-      hasPrice: !!price,
+      instrumentId: id, currency,
+      quantity: p.quantity, averageCostEur: p.averageCostEur,
+      totalCostEur: p.totalCostEur, realizedPnlEur: p.realizedPnlEur,
+      status: 'valued',
+      lastPriceNative: pr.price, lastPriceDate: pr.date,
+      fxEurPerUnit: fx.fx, fxDate: fx.date,
+      marketValueEur: mv, unrealizedPnlEur: upnl,
+      hasPrice: true,
     });
   }
   return out;
@@ -57,14 +117,15 @@ export function valuePositions(
 
 export interface PortfolioTotals {
   cashEur: Decimal;
-  positionsValueEur: Decimal;
-  totalValueEur: Decimal;
+  positionsValueEur: Decimal | null;
+  totalValueEur: Decimal | null;
   totalCostEur: Decimal;
-  unrealizedPnlEur: Decimal;
+  unrealizedPnlEur: Decimal | null;
   realizedPnlEur: Decimal;
   incomeEur: Decimal;
   feesEur: Decimal;
   netContributionsEur: Decimal;    // deposits - withdrawals
+  hasMissingValuations: boolean;
 }
 
 export function totals(
@@ -74,20 +135,26 @@ export function totals(
   let posValue = ZERO;
   let totalCost = ZERO;
   let upnl = ZERO;
+  let missing = false;
   for (const v of valuations) {
-    posValue = posValue.plus(v.marketValueEur);
     totalCost = totalCost.plus(v.totalCostEur);
-    upnl = upnl.plus(v.unrealizedPnlEur);
+    if (v.status === 'valued' && v.marketValueEur && v.unrealizedPnlEur) {
+      posValue = posValue.plus(v.marketValueEur);
+      upnl = upnl.plus(v.unrealizedPnlEur);
+    } else {
+      missing = true;
+    }
   }
   return {
     cashEur: cash.cashEur,
-    positionsValueEur: posValue,
-    totalValueEur: cash.cashEur.plus(posValue),
+    positionsValueEur: missing ? null : posValue,
+    totalValueEur: missing ? null : cash.cashEur.plus(posValue),
     totalCostEur: totalCost,
-    unrealizedPnlEur: upnl,
+    unrealizedPnlEur: missing ? null : upnl,
     realizedPnlEur: cash.realizedPnlEur,
     incomeEur: cash.incomeEur,
     feesEur: cash.feesEur,
     netContributionsEur: cash.deposits.minus(cash.withdrawals),
+    hasMissingValuations: missing,
   };
 }
