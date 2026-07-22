@@ -40,7 +40,7 @@ describe('simulateReversal', () => {
     ];
     const r = simulateReversal(rows, 'd1', INS);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toBe('cash_negative');
+    expect(!r.ok && r.reason).toBe('cash_negative');
   });
 
   it('non stornabile: REVERSAL', () => {
@@ -50,7 +50,7 @@ describe('simulateReversal', () => {
     ];
     const r = simulateReversal(rows, 'r1');
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toBe('is_reversal');
+    expect(!r.ok && r.reason).toBe('is_reversal');
   });
 
   it('non stornabile: già stornata', () => {
@@ -60,7 +60,7 @@ describe('simulateReversal', () => {
     ];
     const r = simulateReversal(rows, 'd1');
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toBe('already_reversed');
+    expect(!r.ok && r.reason).toBe('already_reversed');
   });
 
   it('OPENING fuori finestra: presente BUY ordinario', () => {
@@ -71,7 +71,7 @@ describe('simulateReversal', () => {
     ];
     const r = simulateReversal(rows, 'oc');
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toBe('opening_window_closed');
+    expect(!r.ok && r.reason).toBe('opening_window_closed');
   });
 
   it('storno di SELL: quantità torna al valore pre-vendita', () => {
