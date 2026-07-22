@@ -1,197 +1,98 @@
-import { TrendingUp, TrendingDown, Trophy, Target, Percent, Calendar } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { calculatePLSummary } from '@/lib/mockData';
-import { useAppState } from '@/contexts/AppStateContext';
-import { TransactionsHistory } from '@/components/transactions/TransactionsHistory';
-import { SLEEVES } from '@/types/portfolio';
-import { useMemo } from 'react';
-import { useOperationModal } from '@/contexts/operationModalStore';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { usePortfolioState } from '@/hooks/usePortfolioState';
+import { useOperationModal } from '@/contexts/operationModalStore';
+import { opTypeLabel } from '@/domain/reversalSimulation';
+import type { LedgerRow } from '@/domain/types';
+
+// Blocco D (F2): lettura TEMPORANEA del ledger grezzo. Nessuna metrica calcolata
+// localmente: gross_amount_eur e fees_eur sono valori PERSISTITI dal server.
+// Le metriche complete (P/L, Dietz, win-rate…) arrivano in F4.
+function fmtEur(s: string | null): string {
+  if (s === null) return '—';
+  return `€${Number(s).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 export default function PerformancePage() {
-  const { transactions, closedPositions } = useAppState();
+  const { user } = useCurrentUser();
+  const { data: inputs, isLoading } = usePortfolioState(user?.id ?? null);
   const { open: openOpModal } = useOperationModal();
-  const allClosed = closedPositions;
-  const summary = useMemo(() => calculatePLSummary(allClosed), [allClosed]);
+
+  const ledger: LedgerRow[] = [...(inputs?.operations ?? [])].sort((a, b) => {
+    if (a.effective_date !== b.effective_date) return a.effective_date < b.effective_date ? 1 : -1;
+    if (a.recorded_at !== b.recorded_at) return a.recorded_at < b.recorded_at ? 1 : -1;
+    return Number(b.seq) - Number(a.seq);
+  });
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Rendimenti & P/L</h1>
-          <p className="text-muted-foreground">Analisi delle performance e storico operazioni</p>
+          <h1 className="text-2xl font-bold">Rendimenti &amp; P/L</h1>
+          <p className="text-muted-foreground">Storico operazioni dal registro contabile</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="success" onClick={() => openOpModal({ kind: 'BUY' })}>
-            Nuovo acquisto
-          </Button>
-          <Button variant="warning" onClick={() => openOpModal({ kind: 'SELL' })}>
-            Nuova vendita
-          </Button>
+          <Button onClick={() => openOpModal({ kind: 'BUY' })}>Nuova operazione</Button>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className={summary.totalPL >= 0 ? 'border-risk-on/30' : 'border-risk-off/30'}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              {summary.totalPL >= 0 ? <TrendingUp className="h-4 w-4 text-risk-on" /> : <TrendingDown className="h-4 w-4 text-risk-off" />}
-              P/L Totale
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold font-mono ${summary.totalPL >= 0 ? 'text-risk-on' : 'text-risk-off'}`}>
-              {summary.totalPL >= 0 ? '+' : ''}€{summary.totalPL.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
-            </div>
-            <p className={`text-sm ${summary.totalPLPercent >= 0 ? 'text-risk-on' : 'text-risk-off'}`}>
-              {summary.totalPLPercent >= 0 ? '+' : ''}{summary.totalPLPercent.toFixed(2)}%
-            </p>
-          </CardContent>
-        </Card>
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          Metriche complete di rendimento (P/L totale, Modified Dietz, win-rate, curva del valore)
+          <strong> disponibili in F4</strong>. Qui è mostrato il registro operazioni grezzo.
+        </AlertDescription>
+      </Alert>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-primary" />
-              Win Rate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-mono">
-              {summary.winRate.toFixed(1)}%
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {summary.winningTrades}W / {summary.losingTrades}L
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Target className="h-4 w-4 text-risk-on" />
-              Media Utile
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-mono text-risk-on">
-              +€{summary.avgWin.toFixed(2)}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              per trade vincente
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Percent className="h-4 w-4 text-risk-off" />
-              Media Perdita
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-mono text-risk-off">
-              {summary.avgLoss < 0 ? '-' : ''}€{Math.abs(summary.avgLoss).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              per trade perdente
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Closed Positions Table */}
-      <Card className="card-glow">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Posizioni Chiuse
-            <Badge variant="outline">{allClosed.length}</Badge>
+            Registro operazioni
+            <Badge variant="outline">{ledger.length}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Sleeve</TableHead>
-                <TableHead>Data Acquisto</TableHead>
-                <TableHead>Data Vendita</TableHead>
-                <TableHead className="text-right">Prezzo Acquisto</TableHead>
-                <TableHead className="text-right">Prezzo Vendita</TableHead>
-                <TableHead className="text-right">Quantità</TableHead>
-                <TableHead className="text-right">P/L €</TableHead>
-                <TableHead className="text-right">P/L %</TableHead>
-                <TableHead className="text-right">Giorni</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {allClosed.map((cp) => (
-                <TableRow key={cp.id}>
-                  <TableCell className="font-medium">
-                    {SLEEVES[cp.sleeveKey]?.name || cp.sleeveKey}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3 text-muted-foreground" />
-                      {new Date(cp.buyDate).toLocaleDateString('it-IT')}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3 text-muted-foreground" />
-                      {new Date(cp.sellDate).toLocaleDateString('it-IT')}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    €{cp.buyPrice.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    €{cp.sellPrice.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {cp.quantity.toLocaleString('it-IT')}
-                  </TableCell>
-                  <TableCell className="text-right font-mono font-medium">
-                    <span className={cp.profitLossEur >= 0 ? 'text-risk-on' : 'text-risk-off'}>
-                      {cp.profitLossEur >= 0 ? '+' : ''}€{cp.profitLossEur.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Badge 
-                      variant={cp.profitLossPercent >= 0 ? 'default' : 'secondary'}
-                      className={cp.profitLossPercent >= 0 ? 'bg-risk-on/20 text-risk-on' : 'bg-risk-off/20 text-risk-off'}
-                    >
-                      {cp.profitLossPercent >= 0 ? '+' : ''}{cp.profitLossPercent.toFixed(2)}%
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-muted-foreground">
-                    {cp.holdingDays}g
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {allClosed.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              Nessuna posizione chiusa
+          {isLoading ? (
+            <div className="h-40 animate-pulse rounded bg-muted/40" />
+          ) : ledger.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Nessuna operazione registrata.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead className="text-right">Quantità</TableHead>
+                    <TableHead className="text-right">Controvalore €</TableHead>
+                    <TableHead className="text-right">Commissioni €</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ledger.map((op) => (
+                    <TableRow key={op.id} className={op.reversal_of_operation_id ? 'opacity-70' : ''}>
+                      <TableCell className="font-mono text-sm">{op.effective_date}</TableCell>
+                      <TableCell><Badge variant="outline">{opTypeLabel(op.op_type)}</Badge></TableCell>
+                      <TableCell className="text-right font-mono">
+                        {op.quantity ? Number(op.quantity).toLocaleString('it-IT', { maximumFractionDigits: 6 }) : '—'}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">{fmtEur(op.gross_amount_eur)}</TableCell>
+                      <TableCell className="text-right font-mono">{fmtEur(op.fees_eur)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
       </Card>
-
-      {/* Transactions History */}
-      <TransactionsHistory transactions={transactions} />
     </div>
   );
 }

@@ -1,24 +1,13 @@
-import { useMemo } from 'react';
 import { useAppState } from '@/contexts/AppStateContext';
-import { useSignalEngine } from '@/contexts/SignalEngineContext';
-import { computeDynamicAlerts } from '@/lib/dynamicAlerts';
-import { mockTargetsRiskOn, mockTargetsRiskOff } from '@/lib/mockData';
 import { Alert } from '@/types/portfolio';
 
 /**
- * Returns the merged list of alerts: static (from AppState) + dynamic
- * (derived from positions vs targets vs strategyConfig).
+ * Blocco D (F2): restituisce solo gli alert dello stato UI.
+ * Gli alert DINAMICI (deviazione dai target, take-profit…) derivavano da posizioni
+ * e regime mock: sono rinviati alla F5, quando saranno calcolati dalla proiezione
+ * reale del ledger e dai target confermati. Nessun output mock in modalità reale.
  */
 export function useAllAlerts(): Alert[] {
-  const { alerts, positions, strategyConfig } = useAppState();
-  const { finalRegime } = useSignalEngine();
-
-  return useMemo(() => {
-    const regime: 'RISK_ON' | 'RISK_OFF' =
-      finalRegime === 'UNDETERMINED' ? 'RISK_ON' : finalRegime;
-    const targets = regime === 'RISK_ON' ? mockTargetsRiskOn : mockTargetsRiskOff;
-    const asOf = new Date().toISOString().slice(0, 10);
-    const dynamic = computeDynamicAlerts(positions, targets, strategyConfig, asOf);
-    return [...alerts, ...dynamic];
-  }, [alerts, positions, strategyConfig, finalRegime]);
+  const { alerts } = useAppState();
+  return alerts;
 }
