@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { D, ZERO, Decimal } from '@/domain/decimal';
-import type { OperationPrefill } from '@/contexts/OperationModalContext';
+import type { OperationPrefill } from '@/contexts/operationModalStore';
 import {
   previewOperation,
   proposeFx,
