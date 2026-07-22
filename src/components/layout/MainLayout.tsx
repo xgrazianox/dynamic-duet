@@ -2,7 +2,7 @@ import { Outlet } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { Button } from '@/components/ui/button';
-import { useOperationModal } from '@/contexts/OperationModalContext';
+import { useOperationModal } from '@/contexts/operationModalStore';
 
 export function MainLayout() {
   const { open } = useOperationModal();

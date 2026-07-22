@@ -14,7 +14,7 @@ import { useAppState } from '@/contexts/AppStateContext';
 import { TransactionsHistory } from '@/components/transactions/TransactionsHistory';
 import { SLEEVES } from '@/types/portfolio';
 import { useMemo } from 'react';
-import { useOperationModal } from '@/contexts/OperationModalContext';
+import { useOperationModal } from '@/contexts/operationModalStore';
 import { Button } from '@/components/ui/button';
 
 export default function PerformancePage() {

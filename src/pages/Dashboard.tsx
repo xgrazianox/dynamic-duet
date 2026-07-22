@@ -7,7 +7,7 @@ import { TradesList } from '@/components/dashboard/TradesList';
 import { RatioChart } from '@/components/dashboard/RatioChart';
 import { HoldingsTable } from '@/components/dashboard/HoldingsTable';
 import { AllocationComparisonChart } from '@/components/dashboard/AllocationComparisonChart';
-import { useOperationModal } from '@/contexts/OperationModalContext';
+import { useOperationModal } from '@/contexts/operationModalStore';
 import {
   calculateTradeSuggestions,
   mockTargetsRiskOn,
