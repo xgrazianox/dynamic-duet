@@ -591,6 +591,7 @@ export type Database = {
           quantity_step: string | null
           regime_class: Database["public"]["Enums"]["regime_class"] | null
           sleeve: Database["public"]["Enums"]["sleeve"] | null
+          status: string | null
           ticker: string | null
         }
         Insert: {
@@ -604,6 +605,7 @@ export type Database = {
           quantity_step?: never
           regime_class?: Database["public"]["Enums"]["regime_class"] | null
           sleeve?: Database["public"]["Enums"]["sleeve"] | null
+          status?: never
           ticker?: string | null
         }
         Update: {
@@ -617,6 +619,7 @@ export type Database = {
           quantity_step?: never
           regime_class?: Database["public"]["Enums"]["regime_class"] | null
           sleeve?: Database["public"]["Enums"]["sleeve"] | null
+          status?: never
           ticker?: string | null
         }
         Relationships: [
