@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
 import { SignalEngineProvider } from "./contexts/SignalEngineContext";
 import { AppStateProvider } from "./contexts/AppStateContext";
+import { OperationModalProvider } from "./contexts/OperationModalContext";
 import { MigrationGate } from "./components/migration/MigrationGate";
 import AuthPage from "./pages/AuthPage";
 import Index from "./pages/Index";
@@ -29,6 +30,7 @@ const App = () => (
       <SignalEngineProvider>
         <AppStateProvider>
           <BrowserRouter>
+          <OperationModalProvider>
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
             <Route element={<MigrationGate><MainLayout /></MigrationGate>}>
@@ -44,6 +46,7 @@ const App = () => (
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </OperationModalProvider>
           </BrowserRouter>
         </AppStateProvider>
       </SignalEngineProvider>
