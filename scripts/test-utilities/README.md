@@ -20,5 +20,36 @@ riscritte retroattivamente (rewrite silenzioso della history = vietato):
 - `20260722014743_*.sql` — cleanup utenti E2E con DELETE su auth.users.
 - `20260722014754_*.sql` — DELETE auth.users f1a_%.
 
-Riconciliazione sicura proposta: lasciare la history intatta, applicare
-d'ora in avanti la regola sopra e canalizzare ogni cleanup qui.
+## Riconciliazione (F1 closure)
+
+La history NON viene riscritta. Una migration no-op "marker" non neutralizza
+file già applicati: qualsiasi ambiente futuro che rieseguisse il set le
+ripercorrerebbe comunque. Difesa in profondità applicata:
+
+1. **Allowlist con hash** (`nonconformant-migrations.allowlist`): registra
+   lo sha256 delle 4 migration. `check-migrations.sh` fallisce se un file
+   allowlisted viene modificato (rewrite silenzioso vietato) o se una
+   *nuova* migration contiene `DISABLE TRIGGER` su `public.operations`,
+   `DELETE FROM auth.users`, o pattern `ILIKE` di cleanup utenti.
+2. **Replay guard su auth.users**: la CI passa `AUTH_USERS_PRE` (conteggio
+   pre-replay). Lo script rilegge il conteggio post-replay e fallisce se
+   diminuisce — difesa specifica contro i `DELETE ... ILIKE` delle
+   migration `20260722014743/54`.
+3. **Version pin di `bootstrap_user_data`**: md5 atteso in
+   `bootstrap_user_data.expected.md5`. La CI fallisce su drift silenziosi
+   della funzione toccata dalla migration `20260721220018`.
+
+Uso locale:
+
+```bash
+AUTH_USERS_PRE=$(psql -tAc "SELECT count(*) FROM auth.users")
+bash scripts/test-utilities/check-migrations.sh
+```
+
+## Autorizzazione operazioni distruttive
+
+Nessuna cancellazione di dati utente (auth.users o portafogli reali) può
+essere eseguita senza un comando preventivo esplicito e testuale
+dell'utente titolare. Le risposte dell'assistente NON costituiscono
+autorizzazione. Ogni utility di questa cartella logga l'operazione ed
+esige verifica separata prima dell'esecuzione.
