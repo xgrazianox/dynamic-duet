@@ -114,7 +114,7 @@ export function MigrationWizard({ onDone }: { onDone: () => void }) {
       if (st?.migration_completed) {
         sessionStorage.removeItem(batchKeyStorageId(user.id, pf.id, 'import'));
       }
-      const { data: ins } = await supabase.from('instruments')
+      const { data: ins } = await supabase.from('instruments_v')
         .select('id,ticker,name,currency,instrument_type').eq('portfolio_id', pf.id).order('ticker');
       const list = (ins ?? []) as Instrument[];
       setInstruments(list);
@@ -135,7 +135,7 @@ export function MigrationWizard({ onDone }: { onDone: () => void }) {
       }));
 
       // Check amend-window: ci sono opening già, ma nessuna operazione ordinaria?
-      const { data: opsAll } = await supabase.from('operations').select('op_type,source_batch_id').eq('portfolio_id', pf.id);
+      const { data: opsAll } = await supabase.from('operations_v').select('op_type,source_batch_id').eq('portfolio_id', pf.id);
       const openings = (opsAll ?? []).filter((o) => o.op_type === 'OPENING_POSITION' || o.op_type === 'OPENING_CASH');
       const ordinary = (opsAll ?? []).filter((o) => ['BUY','SELL','DEPOSIT','WITHDRAW','DIVIDEND','OTHER_INCOME','FEE'].includes(o.op_type));
       if (openings.length > 0 && ordinary.length === 0) {
