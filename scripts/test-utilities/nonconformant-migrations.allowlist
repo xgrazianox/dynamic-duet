@@ -1,0 +1,9 @@
+# Allowlist of the 4 historical non-conformant migrations already applied to cloud.
+# Format: <sha256>  <filename>
+# Any modification to these files (rewrite of applied history) MUST fail CI.
+# Any NEW migration containing DISABLE TRIGGER on public.operations or DELETE on
+# auth.users / user data tables MUST also fail CI — see check-migrations.sh.
+ead60ac80a3e4ce151da5cc6f4a639b0016ade0d93f3fc15e5807b837e80def0  supabase/migrations/20260721220018_a2208e08-2c36-4547-b905-cbe8526f3ebe.sql
+fb85e0eb735aad3178931dcaf77503aa898f20ef0a452abb24a48637a0edaf2b  supabase/migrations/20260722000900_322b7efd-fc6c-4f93-beae-3c0fa7aad881.sql
+79fbb80938a4b22c80065a05ed31cee3cec7a83f3b4918619da8238f95ef17bd  supabase/migrations/20260722014743_17d27e25-a31c-4ff0-8375-944e77b657d3.sql
+645a503f4b0725ff7a20b1a29101a0d3b41e2773c2f38fa384df57a589fb5cb6  supabase/migrations/20260722014754_625942ab-7ddb-4bce-a8e9-a0b70828a0b4.sql
