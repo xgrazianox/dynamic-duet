@@ -207,7 +207,7 @@ export default function PortfolioPage() {
   }
 
   // ---- Ledger + REVERSAL set --------------------------------------------
-  const ledger = inputs?.operations ?? [];
+  const ledger = useMemo(() => inputs?.operations ?? [], [inputs?.operations]);
   const reversedSet = useMemo(() => reversedIds(ledger), [ledger]);
   const ledgerSorted = useMemo(() => {
     return [...ledger].sort((a, b) => {
