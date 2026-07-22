@@ -58,20 +58,30 @@ function todayFirstOfMonth(): string {
  * Sopravvive a remount, refresh e "risposte di rete perse". Eliminato solo
  * quando la rilettura server conferma che la migrazione è completata.
  */
-function usePersistentBatchKey(userId: string | null, portfolioId: string | null) {
+/**
+ * Batch key persistente per (utente, portfolio, NAMESPACE).
+ * NAMESPACE distingue 'import' e 'amend': una chiave chiusa per import
+ * non può essere riusata per amend, e viceversa.
+ */
+type BatchNs = 'import' | 'amend';
+function batchKeyStorageId(userId: string, portfolioId: string, ns: BatchNs) {
+  return `migration:batchKey:${ns}:${userId}:${portfolioId}`;
+}
+function usePersistentBatchKey(userId: string | null, portfolioId: string | null, ns: BatchNs) {
   return useMemo(() => {
     if (!userId || !portfolioId) return null;
-    const k = `migration:batchKey:${userId}:${portfolioId}`;
+    const k = batchKeyStorageId(userId, portfolioId, ns);
     let v = sessionStorage.getItem(k);
     if (!v) {
       v = crypto.randomUUID();
       sessionStorage.setItem(k, v);
     }
     return v;
-  }, [userId, portfolioId]);
+  }, [userId, portfolioId, ns]);
 }
-function clearBatchKey(userId: string, portfolioId: string) {
-  sessionStorage.removeItem(`migration:batchKey:${userId}:${portfolioId}`);
+function clearAllBatchKeys(userId: string, portfolioId: string) {
+  sessionStorage.removeItem(batchKeyStorageId(userId, portfolioId, 'import'));
+  sessionStorage.removeItem(batchKeyStorageId(userId, portfolioId, 'amend'));
 }
 
 export function MigrationWizard({ onDone }: { onDone: () => void }) {
@@ -86,7 +96,8 @@ export function MigrationWizard({ onDone }: { onDone: () => void }) {
   const [origBatchId, setOrigBatchId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [portfolioId, setPortfolioId] = useState<string | null>(null);
-  const batchKey = usePersistentBatchKey(userId, portfolioId);
+  const importBatchKey = usePersistentBatchKey(userId, portfolioId, 'import');
+  const amendBatchKey  = usePersistentBatchKey(userId, portfolioId, 'amend');
 
   useEffect(() => {
     (async () => {
@@ -96,6 +107,13 @@ export function MigrationWizard({ onDone }: { onDone: () => void }) {
       const { data: pf } = await supabase.from('portfolios').select('id').eq('user_id', user.id).maybeSingle();
       if (!pf) return;
       setPortfolioId(pf.id);
+      // Se il server ha già completato la migrazione, elimino la chiave import
+      // rimasta appesa dopo una risposta persa (evita cicli di retry).
+      const { data: st } = await supabase.from('portfolio_settings')
+        .select('migration_completed').eq('portfolio_id', pf.id).maybeSingle();
+      if (st?.migration_completed) {
+        sessionStorage.removeItem(batchKeyStorageId(user.id, pf.id, 'import'));
+      }
       const { data: ins } = await supabase.from('instruments')
         .select('id,ticker,name,currency,instrument_type').eq('portfolio_id', pf.id).order('ticker');
       const list = (ins ?? []) as Instrument[];
@@ -132,17 +150,17 @@ export function MigrationWizard({ onDone }: { onDone: () => void }) {
   }
 
   function finish() {
-    if (userId && portfolioId) clearBatchKey(userId, portfolioId);
+    if (userId && portfolioId) clearAllBatchKeys(userId, portfolioId);
     onDone();
   }
 
   async function confirmBlank() {
-    if (busy || !batchKey) return;   // no double submit
+    if (busy || !importBatchKey) return;   // no double submit
     setBusy(true);
     try {
       const cash = Number(openingCash) || 0;
       const { error } = await supabase.rpc('import_opening_balances', {
-        _key: batchKey,
+        _key: importBatchKey,
         _payload: { opening_date: openingDate, opening_cash: cash, positions: [], fxs: [] } as never,
       });
       if (error) throw error;
@@ -154,7 +172,8 @@ export function MigrationWizard({ onDone }: { onDone: () => void }) {
   }
 
   async function confirmImport() {
-    if (busy || !batchKey) return;
+    const key = mode === 'amend' ? amendBatchKey : importBatchKey;
+    if (busy || !key) return;
     setBusy(true);
     try {
       const positions = rows.filter((r) => r.include && Number(r.quantity) > 0).map((r) => ({
@@ -181,8 +200,17 @@ export function MigrationWizard({ onDone }: { onDone: () => void }) {
       };
       const rpc = mode === 'amend' ? 'amend_opening_import' : 'import_opening_balances';
       const body = mode === 'amend' ? { ...payload, original_batch_id: origBatchId } : payload;
-      const { error } = await supabase.rpc(rpc, { _key: batchKey, _payload: body as never });
-      if (error) throw error;
+      const { error } = await supabase.rpc(rpc, { _key: key, _payload: body as never });
+      if (error) {
+        // "stessa chiave, payload diverso" → NON retry ciclico: forza rilettura server
+        if (/idempotency conflict/i.test(error.message ?? '')) {
+          toast({ title: 'Conflitto idempotenza', description: 'Rileggo lo stato del server…', variant: 'destructive' });
+          if (userId && portfolioId) clearAllBatchKeys(userId, portfolioId);
+          onDone();
+          return;
+        }
+        throw error;
+      }
       toast({ title: mode === 'amend' ? 'Importazione corretta' : 'Importazione completata' });
       finish();
     } catch (err) {

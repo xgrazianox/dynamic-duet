@@ -29,7 +29,7 @@ export interface LedgerRow {
 export interface PriceRow {
   instrument_id: string;
   price_date: string;   // YYYY-MM-DD
-  close_price: string;  // EUR-normalized per opening rows; native ccy per market rows
+  close_price: string;  // SEMPRE in valuta nativa dell'instrument
 }
 
 export interface FxRow {

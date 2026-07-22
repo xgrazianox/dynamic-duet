@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { computePortfolioState } from '../computePortfolioState';
+import { valuePositions } from '../pnl';
+import { projectPositions } from '../positions';
+import { replayLedger } from '../ledgerReplay';
 import { Decimal, roundMoney, roundAvgCost } from '../decimal';
-import type { LedgerRow } from '../types';
+import type { LedgerRow, InstrumentRow, PriceRow, FxRow } from '../types';
 
 let seq = 0;
 function op(partial: Partial<LedgerRow> & Pick<LedgerRow, 'op_type' | 'effective_date'>): LedgerRow {
@@ -136,11 +139,13 @@ describe('valuazione con prezzi e asOf', () => {
       { instrument_id: 'i1', price_date: '2026-01-31', close_price: '110' },
       { instrument_id: 'i1', price_date: '2026-02-28', close_price: '130' },
     ];
-    const s = computePortfolioState({ operations: ops, instruments: [], prices, fxRates: [], asOf: '2026-02-01' });
+    const instruments: InstrumentRow[] = [{ id: 'i1', ticker: 'X', name: 'X', currency: 'EUR', quantity_step: '1' }];
+    const s = computePortfolioState({ operations: ops, instruments, prices, fxRates: [], asOf: '2026-02-01' });
     const v = s.valuations[0];
-    expect(v.marketValueEur.toFixed(2)).toBe('1100.00');
-    expect(v.unrealizedPnlEur.toFixed(2)).toBe('100.00');
-    expect(s.totals.totalValueEur.toFixed(2)).toBe('10100.00');
+    expect(v.status).toBe('valued');
+    expect(v.marketValueEur!.toFixed(2)).toBe('1100.00');
+    expect(v.unrealizedPnlEur!.toFixed(2)).toBe('100.00');
+    expect(s.totals.totalValueEur!.toFixed(2)).toBe('10100.00');
   });
 });
 
@@ -234,9 +239,157 @@ describe('trasporto NUMERIC: solo stringhe accettate', () => {
     const prices = [
       { instrument_id: 'i1', price_date: '2026-03-01', close_price: '200' }, // futuro
     ];
-    const s = computePortfolioState({ operations: ops, instruments: [], prices, fxRates: [], asOf: '2026-02-01' });
+    const instruments: InstrumentRow[] = [{ id: 'i1', ticker: 'X', name: 'X', currency: 'EUR', quantity_step: '1' }];
+    const s = computePortfolioState({ operations: ops, instruments, prices, fxRates: [], asOf: '2026-02-01' });
     const v = s.valuations[0];
-    expect(v.hasPrice).toBe(false);
-    expect(v.marketValueEur.toFixed(2)).toBe('0.00');
+    expect(v.status).toBe('missing_price');
+    expect(v.marketValueEur).toBeNull();
+    expect(s.totals.totalValueEur).toBeNull();
+    expect(s.totals.hasMissingValuations).toBe(true);
+  });
+});
+
+// ============================================================================
+// F1.b CORREZIONE CONCLUSIVA — Valorizzazione multivaluta completa
+// ============================================================================
+describe('valorizzazione USD con FX storico ≠ FX di valorizzazione', () => {
+  const usdInstr: InstrumentRow = { id: 'usd1', ticker: 'COPX', name: 'Copper', currency: 'USD', quantity_step: '1' };
+
+  it('BUY USD registrato con gross EUR (fx storico X); valorizzazione usa FX Y diverso', () => {
+    // Simuliamo un OPENING_POSITION in USD: qty=1, price nativo=108, fx storico=0.9259
+    // → gross_amount_eur = 1 * 108 * 0.9259 = 100.00 (arrotondato)
+    // Valorizzazione con FX = 0.95 (diverso) e stesso prezzo 108:
+    //   market value = 1 * 108 * 0.95 = 102.60; uPnL = 102.60 - 100.00 = 2.60
+    // CM (in EUR) resta 100.00 perché deriva dal gross storico.
+    const ops: LedgerRow[] = [
+      op({ op_type: 'OPENING_POSITION', effective_date: '2026-01-01',
+        instrument_id: 'usd1', quantity: '1', price_ccy: '108', currency: 'USD',
+        fx_eur_per_unit: '0.9259', gross_amount_eur: '100.00', opening_cost_eur: '100.00' }),
+    ];
+    const prices: PriceRow[] = [
+      { instrument_id: 'usd1', price_date: '2026-01-01', close_price: '108' },
+    ];
+    const fxRates: FxRow[] = [
+      { currency: 'USD', rate_date: '2026-01-01', eur_per_unit: '0.9259' },
+      { currency: 'USD', rate_date: '2026-02-01', eur_per_unit: '0.95' },
+    ];
+    const s = computePortfolioState({ operations: ops, instruments: [usdInstr], prices, fxRates, asOf: '2026-02-15' });
+    const v = s.valuations[0];
+    expect(v.status).toBe('valued');
+    expect(v.averageCostEur.toFixed(2)).toBe('100.00');
+    expect(v.marketValueEur!.toFixed(2)).toBe('102.60');
+    expect(v.unrealizedPnlEur!.toFixed(2)).toBe('2.60');
+    expect(v.fxEurPerUnit!.toString()).toBe('0.95');
+  });
+
+  it('asOf successivo a tutti i prezzi → ultimo prezzo precedente; FX futuro escluso', () => {
+    const ops: LedgerRow[] = [
+      op({ op_type: 'OPENING_POSITION', effective_date: '2026-01-01',
+        instrument_id: 'usd1', quantity: '1', price_ccy: '108', currency: 'USD',
+        fx_eur_per_unit: '0.9259', gross_amount_eur: '100.00', opening_cost_eur: '100.00' }),
+    ];
+    const prices: PriceRow[] = [
+      { instrument_id: 'usd1', price_date: '2026-01-01', close_price: '108' },
+      { instrument_id: 'usd1', price_date: '2026-06-01', close_price: '120' },
+    ];
+    const fxRates: FxRow[] = [
+      { currency: 'USD', rate_date: '2026-01-01', eur_per_unit: '0.9259' },
+      { currency: 'USD', rate_date: '2027-01-01', eur_per_unit: '1.00' }, // FUTURO rispetto a asOf
+    ];
+    const s = computePortfolioState({ operations: ops, instruments: [usdInstr], prices, fxRates, asOf: '2026-08-01' });
+    const v = s.valuations[0];
+    expect(v.status).toBe('valued');
+    expect(v.lastPriceNative!.toString()).toBe('120');
+    expect(v.fxEurPerUnit!.toString()).toBe('0.9259'); // NON usa quello futuro
+  });
+
+  it('asOf precedente al primo prezzo → status=missing_price', () => {
+    const ops: LedgerRow[] = [
+      op({ op_type: 'OPENING_POSITION', effective_date: '2026-01-01',
+        instrument_id: 'usd1', quantity: '1', price_ccy: '108', currency: 'USD',
+        fx_eur_per_unit: '0.9259', gross_amount_eur: '100.00', opening_cost_eur: '100.00' }),
+    ];
+    const prices: PriceRow[] = [
+      { instrument_id: 'usd1', price_date: '2026-03-01', close_price: '120' },
+    ];
+    const fxRates: FxRow[] = [
+      { currency: 'USD', rate_date: '2026-03-01', eur_per_unit: '0.95' },
+    ];
+    const s = computePortfolioState({ operations: ops, instruments: [usdInstr], prices, fxRates, asOf: '2026-02-01' });
+    const v = s.valuations[0];
+    expect(v.status).toBe('missing_price');
+    expect(v.marketValueEur).toBeNull();
+  });
+
+  it('prezzo presente ma FX assente → status=missing_fx (MAI zero)', () => {
+    const ops: LedgerRow[] = [
+      op({ op_type: 'OPENING_POSITION', effective_date: '2026-01-01',
+        instrument_id: 'usd1', quantity: '1', price_ccy: '108', currency: 'USD',
+        fx_eur_per_unit: '0.9259', gross_amount_eur: '100.00', opening_cost_eur: '100.00' }),
+    ];
+    const prices: PriceRow[] = [
+      { instrument_id: 'usd1', price_date: '2026-01-01', close_price: '108' },
+    ];
+    const s = computePortfolioState({ operations: ops, instruments: [usdInstr], prices, fxRates: [], asOf: '2026-02-01' });
+    const v = s.valuations[0];
+    expect(v.status).toBe('missing_fx');
+    expect(v.marketValueEur).toBeNull();
+    expect(v.lastPriceNative!.toString()).toBe('108');
+    expect(s.totals.hasMissingValuations).toBe(true);
+    expect(s.totals.positionsValueEur).toBeNull();
+  });
+
+  it('EUR → FX sempre 1 anche senza fx_rates', () => {
+    const eurInstr: InstrumentRow = { id: 'eur1', ticker: 'WORLDCORE', name: 'WC', currency: 'EUR', quantity_step: '1' };
+    const ops: LedgerRow[] = [
+      op({ op_type: 'OPENING_POSITION', effective_date: '2026-01-01',
+        instrument_id: 'eur1', quantity: '10', price_ccy: '50', currency: 'EUR',
+        fx_eur_per_unit: '1', gross_amount_eur: '500.00', opening_cost_eur: '500.00' }),
+    ];
+    const prices: PriceRow[] = [
+      { instrument_id: 'eur1', price_date: '2026-02-01', close_price: '55' },
+    ];
+    const s = computePortfolioState({ operations: ops, instruments: [eurInstr], prices, fxRates: [], asOf: '2026-03-01' });
+    const v = s.valuations[0];
+    expect(v.status).toBe('valued');
+    expect(v.fxEurPerUnit!.toString()).toBe('1');
+    expect(v.marketValueEur!.toFixed(2)).toBe('550.00');
+    expect(v.unrealizedPnlEur!.toFixed(2)).toBe('50.00');
+  });
+});
+
+// ============================================================================
+// F1.b CORREZIONE CONCLUSIVA — Coerenza hook↔RPC (dominio verifica il calcolo)
+// Simuliamo la SEMANTICA della nuova RPC (native price + fx storico → gross EUR)
+// ============================================================================
+describe('coerenza dominio↔RPC OPENING_POSITION (native × fx storico)', () => {
+  it('gross_amount_eur = qty × native × fx con UN solo arrotondamento a 2dp', () => {
+    // Fixture del payload che una RPC produrrebbe per COPX 10@50 USD, fx 0.9259
+    const qty = new Decimal('10');
+    const price = new Decimal('50');
+    const fx = new Decimal('0.9259');
+    const grossRpc = roundMoney(qty.times(price).times(fx)); // = 462.95
+    expect(grossRpc.toFixed(2)).toBe('462.95');
+
+    const usdInstr: InstrumentRow = { id: 'x', ticker: 'COPX', name: '', currency: 'USD', quantity_step: '1' };
+    const ops: LedgerRow[] = [
+      op({ op_type: 'OPENING_POSITION', effective_date: '2026-01-01',
+        instrument_id: 'x', quantity: '10', price_ccy: '50', currency: 'USD',
+        fx_eur_per_unit: '0.9259',
+        gross_amount_eur: grossRpc.toFixed(2),
+        opening_cost_eur: grossRpc.toFixed(2) }),
+    ];
+    const prices: PriceRow[] = [
+      { instrument_id: 'x', price_date: '2026-01-01', close_price: '50' },
+    ];
+    const fxRates: FxRow[] = [
+      { currency: 'USD', rate_date: '2026-01-01', eur_per_unit: '0.9259' },
+    ];
+    const s = computePortfolioState({ operations: ops, instruments: [usdInstr], prices, fxRates, asOf: '2026-01-01' });
+    const v = s.valuations[0];
+    // Coerenza CM (EUR) ↔ gross RPC
+    expect(v.averageCostEur.toFixed(2)).toBe('46.30'); // 462.95 / 10 arrotondato display
+    expect(v.marketValueEur!.toFixed(2)).toBe('462.95');
+    expect(v.unrealizedPnlEur!.toFixed(2)).toBe('0.00');
   });
 });
