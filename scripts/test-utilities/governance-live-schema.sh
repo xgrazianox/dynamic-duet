@@ -34,8 +34,7 @@ for v in "${VARR[@]}"; do
   bad=$(psql -tAc "SELECT (CASE WHEN has_table_privilege('anon','public.$v','SELECT') THEN 1 ELSE 0 END) + (CASE WHEN has_table_privilege('authenticated','public.$v','INSERT,UPDATE,DELETE') THEN 1 ELSE 0 END) + (CASE WHEN has_table_privilege('service_role','public.$v','INSERT,UPDATE,DELETE') THEN 1 ELSE 0 END)")
   check "view.$v.no_write_no_anon" "0" "$bad"
   # Required SELECT for authenticated + service_role
-  sel=$(psql -tAc "SELECT string_agg(grantee, ',' ORDER BY grantee) FROM information_schema.role_table_grants
-    WHERE table_schema='public' AND table_name='$v' AND privilege_type='SELECT' AND grantee IN ('authenticated','service_role')")
+  sel=$(psql -tAc "SELECT string_agg(g,',' ORDER BY g) FROM (VALUES ('authenticated'),('service_role')) t(g) WHERE has_table_privilege(g,'public.$v','SELECT')")
   check "view.$v.select_grants" "authenticated,service_role" "$sel"
 done
 
