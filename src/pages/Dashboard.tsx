@@ -7,7 +7,7 @@ import { TradesList } from '@/components/dashboard/TradesList';
 import { RatioChart } from '@/components/dashboard/RatioChart';
 import { HoldingsTable } from '@/components/dashboard/HoldingsTable';
 import { AllocationComparisonChart } from '@/components/dashboard/AllocationComparisonChart';
-import { TransactionForm } from '@/components/transactions/TransactionForm';
+import { useOperationModal } from '@/contexts/OperationModalContext';
 import {
   calculateTradeSuggestions,
   mockTargetsRiskOn,
@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 
 export default function Dashboard() {
   const { positions, setPositions, setTransactions, instruments } = useAppState();
+  const { open: openOpModal } = useOperationModal();
   const alerts = useAllAlerts();
   const { engineResult, finalRegime, config } = useSignalEngine();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -120,16 +121,12 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <TransactionForm 
-            instruments={instruments} 
-            onSubmit={handleNewTransaction}
-            defaultType="BUY"
-          />
-          <TransactionForm 
-            instruments={instruments} 
-            onSubmit={handleNewTransaction}
-            defaultType="SELL"
-          />
+          <Button variant="success" onClick={() => openOpModal({ kind: 'BUY' })}>
+            Nuovo acquisto
+          </Button>
+          <Button variant="warning" onClick={() => openOpModal({ kind: 'SELL' })}>
+            Nuova vendita
+          </Button>
           <Button variant="outline" onClick={handleRefreshPrices} disabled={isRefreshing}>
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             Aggiorna Quotazioni

@@ -11,24 +11,17 @@ import {
 } from '@/components/ui/table';
 import { calculatePLSummary } from '@/lib/mockData';
 import { useAppState } from '@/contexts/AppStateContext';
-import { TransactionForm } from '@/components/transactions/TransactionForm';
 import { TransactionsHistory } from '@/components/transactions/TransactionsHistory';
-import { SLEEVES, Transaction } from '@/types/portfolio';
+import { SLEEVES } from '@/types/portfolio';
 import { useMemo } from 'react';
+import { useOperationModal } from '@/contexts/OperationModalContext';
+import { Button } from '@/components/ui/button';
 
 export default function PerformancePage() {
-  const { transactions, setTransactions, instruments, closedPositions } = useAppState();
+  const { transactions, closedPositions } = useAppState();
+  const { open: openOpModal } = useOperationModal();
   const allClosed = closedPositions;
   const summary = useMemo(() => calculatePLSummary(allClosed), [allClosed]);
-
-  const handleNewTransaction = (tx: Omit<Transaction, 'id' | 'createdAt'>) => {
-    const newTransaction: Transaction = {
-      ...tx,
-      id: `t${Date.now()}`,
-      createdAt: new Date().toISOString(),
-    };
-    setTransactions(prev => [...prev, newTransaction]);
-  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -39,16 +32,12 @@ export default function PerformancePage() {
           <p className="text-muted-foreground">Analisi delle performance e storico operazioni</p>
         </div>
         <div className="flex gap-3">
-          <TransactionForm 
-            instruments={instruments} 
-            onSubmit={handleNewTransaction}
-            defaultType="BUY"
-          />
-          <TransactionForm 
-            instruments={instruments} 
-            onSubmit={handleNewTransaction}
-            defaultType="SELL"
-          />
+          <Button variant="success" onClick={() => openOpModal({ kind: 'BUY' })}>
+            Nuovo acquisto
+          </Button>
+          <Button variant="warning" onClick={() => openOpModal({ kind: 'SELL' })}>
+            Nuova vendita
+          </Button>
         </div>
       </div>
 

@@ -39,10 +39,8 @@ import { useSignalEngine } from '@/contexts/SignalEngineContext';
 import { useAppState } from '@/contexts/AppStateContext';
 import { useAllAlerts } from '@/hooks/useAllAlerts';
 import { FX_EURUSD } from '@/lib/mockData';
-import { IncreasePositionModal } from '@/components/portfolio/IncreasePositionModal';
-import { DecreasePositionModal } from '@/components/portfolio/DecreasePositionModal';
-import { ClosePositionModal } from '@/components/portfolio/ClosePositionModal';
 import { AddInstrumentModal } from '@/components/portfolio/AddInstrumentModal';
+import { useOperationModal } from '@/contexts/OperationModalContext';
 import { PositionDetailDrawer } from '@/components/portfolio/PositionDetailDrawer';
 import { useToast } from '@/hooks/use-toast';
 import { parseDeepLinkParams } from '@/lib/alertRouting';
@@ -67,6 +65,7 @@ export default function PortfolioPage() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const { positions, setPositions, instruments, setInstruments, transactions, setTransactions, resolveAlert, addClosedPosition } = useAppState();
+  const { open: openOpModal } = useOperationModal();
   const alerts = useAllAlerts();
   const { finalRegime } = useSignalEngine();
   const [showOnlyActive, setShowOnlyActive] = useState(true);
@@ -74,9 +73,6 @@ export default function PortfolioPage() {
   const [lastUpdate, setLastUpdate] = useState(new Date().toLocaleString('it-IT'));
   
   // Modal states
-  const [increaseModalOpen, setIncreaseModalOpen] = useState(false);
-  const [decreaseModalOpen, setDecreaseModalOpen] = useState(false);
-  const [closeModalOpen, setCloseModalOpen] = useState(false);
   const [addInstrumentOpen, setAddInstrumentOpen] = useState(false);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<EnrichedPosition | null>(null);
@@ -155,9 +151,17 @@ export default function PortfolioPage() {
         setSelectedPosition(targetPosition);
         setHighlightedPositionId(targetPosition.position.id);
         if (deepLink.amount) setPrefillAmount(deepLink.amount);
-        if (deepLink.action === 'buy') setIncreaseModalOpen(true);
-        else if (deepLink.action === 'sell') setDecreaseModalOpen(true);
-        else if (deepLink.action === 'close') setCloseModalOpen(true);
+        const onSuccess = () => {
+          if (deepLink.alertId) resolveAlert(deepLink.alertId);
+        };
+        if (deepLink.action === 'buy') {
+          openOpModal({ kind: 'BUY', instrumentId: targetPosition.instrument.id, onSuccess });
+        } else if (deepLink.action === 'sell') {
+          openOpModal({ kind: 'SELL', instrumentId: targetPosition.instrument.id, onSuccess });
+        } else if (deepLink.action === 'close') {
+          const q = targetPosition.position.quantity ? String(targetPosition.position.quantity) : '';
+          openOpModal({ kind: 'SELL', instrumentId: targetPosition.instrument.id, quantity: q, closePosition: true, onSuccess });
+        }
         setTimeout(() => setHighlightedPositionId(null), 3000);
       }
       if (deepLink.alertId) {
@@ -169,7 +173,7 @@ export default function PortfolioPage() {
       }
       setSearchParams({});
     }
-  }, [searchParams, enrichedPositions, setSearchParams, resolveAlert]);
+  }, [searchParams, enrichedPositions, setSearchParams, resolveAlert, openOpModal]);
 
   const handleRefreshPrices = async () => {
     setIsRefreshing(true);
@@ -185,17 +189,18 @@ export default function PortfolioPage() {
 
   const handleIncrease = (enriched: EnrichedPosition) => {
     setSelectedPosition(enriched);
-    setIncreaseModalOpen(true);
+    openOpModal({ kind: 'BUY', instrumentId: enriched.instrument.id });
   };
 
   const handleDecrease = (enriched: EnrichedPosition) => {
     setSelectedPosition(enriched);
-    setDecreaseModalOpen(true);
+    openOpModal({ kind: 'SELL', instrumentId: enriched.instrument.id });
   };
 
   const handleClose = (enriched: EnrichedPosition) => {
     setSelectedPosition(enriched);
-    setCloseModalOpen(true);
+    const q = enriched.position.quantity ? String(enriched.position.quantity) : '';
+    openOpModal({ kind: 'SELL', instrumentId: enriched.instrument.id, quantity: q, closePosition: true });
   };
 
   const handleViewDetail = (enriched: EnrichedPosition) => {
@@ -244,7 +249,7 @@ export default function PortfolioPage() {
       return p;
     }));
     
-    setIncreaseModalOpen(false);
+    // modal closed via unified provider
     toast({
       title: "Posizione aumentata",
       description: `Aggiunto €${amount.toLocaleString('it-IT')} a ${selectedPosition.instrument.name}`
@@ -316,7 +321,7 @@ export default function PortfolioPage() {
       return p;
     }));
     
-    setDecreaseModalOpen(false);
+    // modal closed via unified provider
     toast({
       title: "Posizione ridotta",
       description: `Venduto €${amount.toLocaleString('it-IT')} di ${selectedPosition.instrument.name}`
@@ -380,7 +385,7 @@ export default function PortfolioPage() {
       return p;
     }));
     
-    setCloseModalOpen(false);
+    // modal closed via unified provider
     toast({
       title: "Posizione chiusa",
       description: `Chiusa posizione su ${selectedPosition.instrument.name}`
@@ -625,27 +630,6 @@ export default function PortfolioPage() {
       </Card>
 
       {/* Modals */}
-      <IncreasePositionModal
-        open={increaseModalOpen}
-        onOpenChange={setIncreaseModalOpen}
-        position={selectedPosition}
-        onConfirm={handleConfirmIncrease}
-      />
-      
-      <DecreasePositionModal
-        open={decreaseModalOpen}
-        onOpenChange={setDecreaseModalOpen}
-        position={selectedPosition}
-        onConfirm={handleConfirmDecrease}
-      />
-      
-      <ClosePositionModal
-        open={closeModalOpen}
-        onOpenChange={setCloseModalOpen}
-        position={selectedPosition}
-        onConfirm={handleConfirmClose}
-      />
-      
       <AddInstrumentModal
         open={addInstrumentOpen}
         onOpenChange={setAddInstrumentOpen}
