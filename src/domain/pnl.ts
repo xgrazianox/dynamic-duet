@@ -125,6 +125,11 @@ export interface PortfolioTotals {
   incomeEur: Decimal;
   feesEur: Decimal;
   netContributionsEur: Decimal;    // deposits - withdrawals
+  /** P/L gestionale totale = realizzato + non realizzato + income − fee.
+   *  Incorpora il non realizzato → `null` se una valorizzazione manca. */
+  managerialPnlEur: Decimal | null;
+  /** Numero di posizioni aperte (quantità > 0). Sempre determinabile. */
+  openPositionsCount: number;
   hasMissingValuations: boolean;
 }
 
@@ -136,25 +141,35 @@ export function totals(
   let totalCost = ZERO;
   let upnl = ZERO;
   let missing = false;
+  let openCount = 0;
   for (const v of valuations) {
     totalCost = totalCost.plus(v.totalCostEur);
+    if (v.quantity.gt(0)) openCount += 1;
     if (v.status === 'valued' && v.marketValueEur && v.unrealizedPnlEur) {
       posValue = posValue.plus(v.marketValueEur);
       upnl = upnl.plus(v.unrealizedPnlEur);
-    } else {
+    } else if (v.quantity.gt(0)) {
+      // Una valorizzazione manca solo se la posizione è ancora aperta.
       missing = true;
     }
   }
+  const unrealized = missing ? null : upnl;
+  // Gestionale = realizzato + non realizzato + income − fee (incorpora il non realizzato).
+  const managerial = unrealized === null
+    ? null
+    : cash.realizedPnlEur.plus(unrealized).plus(cash.incomeEur).minus(cash.feesEur);
   return {
     cashEur: cash.cashEur,
     positionsValueEur: missing ? null : posValue,
     totalValueEur: missing ? null : cash.cashEur.plus(posValue),
     totalCostEur: totalCost,
-    unrealizedPnlEur: missing ? null : upnl,
+    unrealizedPnlEur: unrealized,
     realizedPnlEur: cash.realizedPnlEur,
     incomeEur: cash.incomeEur,
     feesEur: cash.feesEur,
     netContributionsEur: cash.deposits.minus(cash.withdrawals),
+    managerialPnlEur: managerial,
+    openPositionsCount: openCount,
     hasMissingValuations: missing,
   };
 }
