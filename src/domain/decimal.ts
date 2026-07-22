@@ -10,8 +10,8 @@ Decimal.set({ precision: 30, rounding: Decimal.ROUND_HALF_UP });
  *  - null/undefined/'' → 0
  * RIFIUTA number nativo: PostgREST serializza NUMERIC come JSON number, quindi
  * qualsiasi number arrivato qui è già passato per un binary64 → dato non fidato.
- * Le uniche eccezioni sono i test unitari che vogliono creare fixture veloci:
- * per quelle usare esplicitamente `Dtest()`.
+ * Per fixture di test veloci esiste `Dtest()` in `src/test/dtest.ts` — NON
+ * importarlo mai da moduli runtime del dominio.
  */
 export const D = (v: string | Decimal | null | undefined): Decimal => {
   if (v === null || v === undefined || v === '') return new Decimal(0);
@@ -20,10 +20,6 @@ export const D = (v: string | Decimal | null | undefined): Decimal => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   throw new TypeError(`D() rejects non-string values in accounting paths (got ${typeof (v as any)})`);
 };
-
-/** Solo per test: consente number/Decimal.Value. Non usare nel dominio. */
-export const Dtest = (v: Decimal.Value | null | undefined): Decimal =>
-  v === null || v === undefined || v === '' ? new Decimal(0) : new Decimal(v);
 
 /** Arrotondamento monetario EUR a 2 decimali HALF_UP. Usare SOLO al confine di output. */
 export const roundMoney = (x: Decimal): Decimal =>

@@ -1,0 +1,1 @@
+DELETE FROM auth.users WHERE email ILIKE 'f1a_%';
