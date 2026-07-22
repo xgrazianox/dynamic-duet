@@ -258,7 +258,11 @@ export default function PortfolioPage() {
           <div className="flex items-center gap-6">
             <div>
               <p className="text-sm text-muted-foreground">Valore Totale Portafoglio</p>
-              <p className="text-3xl font-bold">{fmtEur(totalValueEur)}</p>
+              {hasMissingValuation ? (
+                <p className="text-3xl font-bold text-muted-foreground" title={missingSummary}>n/d</p>
+              ) : (
+                <p className="text-3xl font-bold">{fmtEur(totalValueEur)}</p>
+              )}
             </div>
             <div className="h-12 w-px bg-border" />
             <div>
@@ -276,6 +280,16 @@ export default function PortfolioPage() {
           <Button onClick={() => openOpModal()}>Nuova operazione</Button>
         </CardContent>
       </Card>
+
+      {hasMissingValuation && (
+        <div className="rounded-md border border-orange-500/40 bg-orange-500/10 p-3 text-sm text-orange-700 dark:text-orange-300 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">Valore totale e pesi non calcolabili</p>
+            <p className="text-xs opacity-80">{missingSummary}. Inserisci i prezzi/FX mancanti per ripristinare le valorizzazioni.</p>
+          </div>
+        </div>
+      )}
 
       <Tabs defaultValue="positions" className="space-y-4">
         <TabsList>
