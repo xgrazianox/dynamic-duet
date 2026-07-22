@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { usePortfolioState, useInvalidatePortfolioState } from '@/hooks/usePortfolioState';
-import { useOperationModal } from '@/contexts/OperationModalContext';
+import { useOperationModal } from '@/contexts/operationModalStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -207,7 +207,7 @@ export default function PortfolioPage() {
   }
 
   // ---- Ledger + REVERSAL set --------------------------------------------
-  const ledger = inputs?.operations ?? [];
+  const ledger = useMemo(() => inputs?.operations ?? [], [inputs?.operations]);
   const reversedSet = useMemo(() => reversedIds(ledger), [ledger]);
   const ledgerSorted = useMemo(() => {
     return [...ledger].sort((a, b) => {
