@@ -510,14 +510,14 @@ export default function PortfolioPage() {
             </DialogDescription>
           </DialogHeader>
 
-          {reversePreview && !reversePreview.ok && (
+          {reversePreview !== null && reversePreview.ok === false ? (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>{reversePreview.message}</AlertDescription>
             </Alert>
-          )}
+          ) : null}
 
-          {reversePreview && reversePreview.ok && (
+          {reversePreview !== null && reversePreview.ok === true && (
             <div className="space-y-3 text-sm">
               <div className="rounded-md border p-3">
                 <p className="text-xs text-muted-foreground mb-1">Cassa (EUR)</p>
