@@ -39,8 +39,7 @@ describe('simulateReversal', () => {
         instrument_id: 'i1', quantity: '10', gross_amount_eur: '900', currency: 'EUR', price_ccy: '90', fx_eur_per_unit: '1' }),
     ];
     const r = simulateReversal(rows, 'd1', INS);
-    expect(r.ok).toBe(false);
-    if (r.ok) throw new Error('expected ko'); expect(r.reason).toBe('cash_negative');
+    if (r.ok) { throw new Error('expected ko'); } else { expect(r.reason).toBe('cash_negative'); }
   });
 
   it('non stornabile: REVERSAL', () => {
@@ -49,8 +48,7 @@ describe('simulateReversal', () => {
       row({ id: 'r1', op_type: 'REVERSAL', effective_date: '2025-01-01', seq: '2', reversal_of_operation_id: 'd1' }),
     ];
     const r = simulateReversal(rows, 'r1');
-    expect(r.ok).toBe(false);
-    if (r.ok) throw new Error('expected ko'); expect(r.reason).toBe('is_reversal');
+    if (r.ok) { throw new Error('expected ko'); } else { expect(r.reason).toBe('is_reversal'); }
   });
 
   it('non stornabile: già stornata', () => {
@@ -59,8 +57,7 @@ describe('simulateReversal', () => {
       row({ id: 'r1', op_type: 'REVERSAL', effective_date: '2025-01-01', seq: '2', reversal_of_operation_id: 'd1' }),
     ];
     const r = simulateReversal(rows, 'd1');
-    expect(r.ok).toBe(false);
-    if (r.ok) throw new Error('expected ko'); expect(r.reason).toBe('already_reversed');
+    if (r.ok) { throw new Error('expected ko'); } else { expect(r.reason).toBe('already_reversed'); }
   });
 
   it('OPENING fuori finestra: presente BUY ordinario', () => {
@@ -70,8 +67,7 @@ describe('simulateReversal', () => {
         instrument_id: 'i1', quantity: '5', gross_amount_eur: '500', currency: 'EUR', price_ccy: '100', fx_eur_per_unit: '1' }),
     ];
     const r = simulateReversal(rows, 'oc');
-    expect(r.ok).toBe(false);
-    if (r.ok) throw new Error('expected ko'); expect(r.reason).toBe('opening_window_closed');
+    if (r.ok) { throw new Error('expected ko'); } else { expect(r.reason).toBe('opening_window_closed'); }
   });
 
   it('storno di SELL: quantità torna al valore pre-vendita', () => {
