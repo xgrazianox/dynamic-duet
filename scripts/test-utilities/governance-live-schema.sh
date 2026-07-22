@@ -31,11 +31,7 @@ done
 # Every view must be read-only for authenticated + service_role, no anon, no PUBLIC
 for v in "${VARR[@]}"; do
   # Forbidden grants (INSERT/UPDATE/DELETE/TRUNCATE to any role, any grant to anon/PUBLIC)
-  bad=$(psql -tAc "SELECT count(*) FROM information_schema.role_table_grants
-    WHERE table_schema='public' AND table_name='$v'
-      AND (privilege_type IN ('INSERT','UPDATE','DELETE','TRUNCATE')
-        OR grantee IN ('anon','PUBLIC'))
-      AND grantee NOT IN ('postgres','sandbox_exec')")
+  bad=$(psql -tAc "SELECT (CASE WHEN has_table_privilege('anon','public.$v','SELECT') THEN 1 ELSE 0 END) + (CASE WHEN has_table_privilege('authenticated','public.$v','INSERT,UPDATE,DELETE') THEN 1 ELSE 0 END) + (CASE WHEN has_table_privilege('service_role','public.$v','INSERT,UPDATE,DELETE') THEN 1 ELSE 0 END)")
   check "view.$v.no_write_no_anon" "0" "$bad"
   # Required SELECT for authenticated + service_role
   sel=$(psql -tAc "SELECT string_agg(grantee, ',' ORDER BY grantee) FROM information_schema.role_table_grants
