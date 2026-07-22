@@ -148,14 +148,33 @@ export default function PortfolioPage() {
       .sort((a, b) => (a.instr?.name ?? '').localeCompare(b.instr?.name ?? ''));
   }, [state, instrumentById]);
 
+  // Correzione E: se ANCHE UNA posizione con quantità > 0 è missing_price/missing_fx,
+  // valore totale, pesi e P/L non realizzato dipendenti diventano "n/d" a livello pagina.
+  const missingValuations = useMemo(
+    () => (state?.valuations ?? []).filter(
+      (v) => v.status !== 'valued' && v.quantity.gt(0),
+    ),
+    [state],
+  );
+  const hasMissingValuation = missingValuations.length > 0;
+  const missingSummary = useMemo(() => {
+    if (!hasMissingValuation) return '';
+    const names = missingValuations
+      .map((v) => instrumentById.get(v.instrumentId)?.ticker ?? v.instrumentId)
+      .join(', ');
+    return `Dati mancanti su: ${names}`;
+  }, [missingValuations, instrumentById, hasMissingValuation]);
+
   // Peso su totale INCLUSA cassa
   function weightOf(mv: Decimal | null | undefined): string {
+    if (hasMissingValuation) return 'n/d';
     if (mv === null || mv === undefined) return '—';
     if (totalValueEur.isZero()) return '0,0%';
     const w = mv.div(totalValueEur).times(100);
     return `${Number(w.toFixed(1)).toLocaleString('it-IT', { minimumFractionDigits: 1 })}%`;
   }
   function cashWeight(): string {
+    if (hasMissingValuation) return 'n/d';
     if (totalValueEur.isZero()) return '0,0%';
     const w = cashEur.div(totalValueEur).times(100);
     return `${Number(w.toFixed(1)).toLocaleString('it-IT', { minimumFractionDigits: 1 })}%`;
@@ -239,7 +258,11 @@ export default function PortfolioPage() {
           <div className="flex items-center gap-6">
             <div>
               <p className="text-sm text-muted-foreground">Valore Totale Portafoglio</p>
-              <p className="text-3xl font-bold">{fmtEur(totalValueEur)}</p>
+              {hasMissingValuation ? (
+                <p className="text-3xl font-bold text-muted-foreground" title={missingSummary}>n/d</p>
+              ) : (
+                <p className="text-3xl font-bold">{fmtEur(totalValueEur)}</p>
+              )}
             </div>
             <div className="h-12 w-px bg-border" />
             <div>
@@ -257,6 +280,16 @@ export default function PortfolioPage() {
           <Button onClick={() => openOpModal()}>Nuova operazione</Button>
         </CardContent>
       </Card>
+
+      {hasMissingValuation && (
+        <div className="rounded-md border border-orange-500/40 bg-orange-500/10 p-3 text-sm text-orange-700 dark:text-orange-300 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">Valore totale e pesi non calcolabili</p>
+            <p className="text-xs opacity-80">{missingSummary}. Inserisci i prezzi/FX mancanti per ripristinare le valorizzazioni.</p>
+          </div>
+        </div>
+      )}
 
       <Tabs defaultValue="positions" className="space-y-4">
         <TabsList>
