@@ -75,3 +75,15 @@ distribuzione degli errori/warning per file è invariata rispetto all'audit.
   allineate → verifica soglia `mesi_richiesti`, comportamento "dati
   insufficienti", persistenza tramite Edge Function e doppio controllo
   actor–portfolio nella RPC service_role.
+---
+
+## Aggiornamento Blocco B-BIS (2026-07-22)
+
+- Baseline F0 conservata: 7 errori / 12 warning.
+- Stato corrente atteso: **massimo 6 errori / 12 warning** (Δ = −1 err).
+- Regola: la baseline può solo diminuire; nessuna regressione.
+- Snapshot corrente: **18 problemi (6 errori / 12 warning)** — PASS.
+- Correzioni:
+  - Split di `OperationModalContext.tsx` (nuovo `operationModalStore.ts`): elimina 1 warning `react-refresh` introdotto dal Blocco A.
+  - `PortfolioPage.tsx`: `ledger` avvolto in `useMemo`: elimina 2 warning `react-hooks/exhaustive-deps` introdotti dal Blocco B.
+- ESLint grezzo continuerà legittimamente a restituire exit 1 finché esistono i 6 errori baseline; il confronto formalizzato (≤ 6 err / ≤ 12 warn) restituisce PASS.
