@@ -87,3 +87,13 @@ distribuzione degli errori/warning per file è invariata rispetto all'audit.
   - Split di `OperationModalContext.tsx` (nuovo `operationModalStore.ts`): elimina 1 warning `react-refresh` introdotto dal Blocco A.
   - `PortfolioPage.tsx`: `ledger` avvolto in `useMemo`: elimina 2 warning `react-hooks/exhaustive-deps` introdotti dal Blocco B.
 - ESLint grezzo continuerà legittimamente a restituire exit 1 finché esistono i 6 errori baseline; il confronto formalizzato (≤ 6 err / ≤ 12 warn) restituisce PASS.
+
+## Chiusura F6-r2 — baseline azzerata
+
+`eslint .` → **exit 0, 0 errori, 0 warning** (2026-07-23). I 6 errori storici
+sono stati corretti realmente (empty-interface → type alias in ui/command e
+ui/textarea; `any` tipizzato in alertRouting; import ESM in tailwind.config;
+AllocationComparisonChart eliminato perché privo di consumatori). I warning
+react-refresh dei file shadcn/ui sono chiusi con una configurazione PUNTUALE
+e documentata in eslint.config.js (export costanti/varianti/hook stabili,
+sicuri per design). Da qui in avanti la baseline autorizzata è ZERO.

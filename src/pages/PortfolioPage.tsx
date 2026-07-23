@@ -18,6 +18,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { RebalancePlanPanel } from '@/components/rebalance/RebalancePlanPanel';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -62,9 +63,9 @@ function useInstrumentsWithStatus(userId: string | null | undefined) {
 // ============================================================================
 function fmtEur(v: Decimal | null | undefined): string {
   if (v === null || v === undefined) return '—';
-  return `€${Number(v.toFixed(2)).toLocaleString('it-IT', {
-    minimumFractionDigits: 2, maximumFractionDigits: 2,
-  })}`;
+  const n = Number(v.toFixed(2));
+  const abs = Math.abs(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${n < 0 ? '−' : ''}€${abs}`; // segno PRIMA del simbolo (it-IT)
 }
 function fmtQty(v: Decimal): string {
   return Number(v.toFixed(6)).toLocaleString('it-IT', { maximumFractionDigits: 6 });
@@ -107,6 +108,7 @@ export default function PortfolioPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [reverseTargetId, setReverseTargetId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [reverseBusy, setReverseBusy] = useState(false);
   const [highlightedInstrumentId, setHighlightedInstrumentId] = useState<string | null>(null);
   const highlightedRef = useRef<HTMLTableRowElement>(null);
@@ -311,12 +313,9 @@ export default function PortfolioPage() {
                     <TableRow>
                       <TableHead>Strumento</TableHead>
                       <TableHead className="text-right">Quantità</TableHead>
-                      <TableHead className="text-right">Costo medio (EUR)</TableHead>
-                      <TableHead className="text-right">Prezzo att.</TableHead>
                       <TableHead className="text-right">Valore (EUR)</TableHead>
-                      <TableHead className="text-right">P/L non real.</TableHead>
-                      <TableHead className="text-right">P/L realizzato</TableHead>
                       <TableHead className="text-right">Peso</TableHead>
+                      <TableHead className="text-right">P/L</TableHead>
                       {/* HOTFIX F5: colonna Target rimossa — il target autoritativo
                           vive nel tab "Piano di ribilanciamento" */}
                       <TableHead className="text-center">Stato</TableHead>
@@ -352,25 +351,18 @@ export default function PortfolioPage() {
                             </div>
                           </TableCell>
                           <TableCell className="text-right font-mono">{fmtQty(v.quantity)}</TableCell>
-                          <TableCell className="text-right font-mono">{fmtEur(v.averageCostEur)}</TableCell>
-                          <TableCell className="text-right font-mono">
-                            {isMissing ? <span className="text-muted-foreground text-xs">{missingLabel}</span> : fmtCcy(v.lastPriceNative, v.currency)}
-                          </TableCell>
                           <TableCell className="text-right font-mono">
                             {isMissing ? <span className="text-muted-foreground text-xs">{missingLabel}</span> : fmtEur(v.marketValueEur)}
                           </TableCell>
-                          <TableCell className={`text-right font-mono ${
-                            v.unrealizedPnlEur && v.unrealizedPnlEur.lt(0) ? 'text-red-600' :
-                            v.unrealizedPnlEur && v.unrealizedPnlEur.gt(0) ? 'text-green-600' : ''
-                          }`}>
-                            {isMissing ? <span className="text-muted-foreground text-xs">n/d</span> : fmtEur(v.unrealizedPnlEur)}
-                          </TableCell>
-                          <TableCell className={`text-right font-mono ${
-                            v.realizedPnlEur.lt(0) ? 'text-red-600' : v.realizedPnlEur.gt(0) ? 'text-green-600' : ''
-                          }`}>
-                            {fmtEur(v.realizedPnlEur)}
-                          </TableCell>
                           <TableCell className="text-right font-mono">{weightOf(v.marketValueEur)}</TableCell>
+                          {(() => { const tot = v.unrealizedPnlEur ? v.realizedPnlEur.plus(v.unrealizedPnlEur) : null; return (
+                          <TableCell className={`text-right font-mono ${
+                            tot && tot.lt(0) ? 'text-red-600' : tot && tot.gt(0) ? 'text-green-600' : ''
+                          }`}>
+                            {isMissing ? <span className="text-muted-foreground text-xs">n/d</span> : fmtEur(tot)}
+                            <Button variant="ghost" size="sm" className="ml-1 h-6 px-1 text-xs" aria-label={`Dettaglio ${instr?.ticker ?? ''}`}
+                              onClick={() => setDetailId(v.instrumentId)}>ⓘ</Button>
+                          </TableCell> ); })()}
                           <TableCell className="text-center">
                             {isMissing ? (
                               <Badge variant="outline" className="border-orange-500 text-orange-600 gap-1">
@@ -412,12 +404,9 @@ export default function PortfolioPage() {
                     <TableRow className="bg-muted/40">
                       <TableCell><span className="font-medium">Cassa</span><span className="text-xs text-muted-foreground ml-2">EUR</span></TableCell>
                       <TableCell className="text-right font-mono">—</TableCell>
-                      <TableCell className="text-right font-mono">—</TableCell>
-                      <TableCell className="text-right font-mono">—</TableCell>
                       <TableCell className="text-right font-mono font-medium">{fmtEur(cashEur)}</TableCell>
-                      <TableCell className="text-right font-mono">—</TableCell>
-                      <TableCell className="text-right font-mono">—</TableCell>
                       <TableCell className="text-right font-mono">{cashWeight()}</TableCell>
+                      <TableCell className="text-right font-mono">—</TableCell>
                       <TableCell className="text-center"><Badge variant="outline">Cash</Badge></TableCell>
                       <TableCell className="text-center">
                         <DropdownMenu>
@@ -535,6 +524,36 @@ export default function PortfolioPage() {
           <RebalancePlanPanel />
         </TabsContent>
       </Tabs>
+
+      {/* ===================== DETTAGLIO POSIZIONE (F6-r2) ===================== */}
+      <Sheet open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
+        <SheetContent side="right" className="w-96">
+          {(() => {
+            const v = state?.valuations.find((x) => x.instrumentId === detailId);
+            const instr = detailId ? instrumentById.get(detailId) : undefined;
+            if (!v) return null;
+            return (
+              <div className="space-y-3 pt-6">
+                <SheetHeader>
+                  <SheetTitle>{instr?.name ?? v.instrumentId}</SheetTitle>
+                  <SheetDescription>{instr?.ticker} • {v.currency}</SheetDescription>
+                </SheetHeader>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <span className="text-muted-foreground">Quantità</span><span className="text-right font-mono">{fmtQty(v.quantity)}</span>
+                  <span className="text-muted-foreground">Costo medio (EUR)</span><span className="text-right font-mono">{fmtEur(v.averageCostEur)}</span>
+                  <span className="text-muted-foreground">Costo totale</span><span className="text-right font-mono">{fmtEur(v.totalCostEur)}</span>
+                  <span className="text-muted-foreground">Prezzo attuale</span><span className="text-right font-mono">{fmtCcy(v.lastPriceNative, v.currency)}</span>
+                  <span className="text-muted-foreground">Data prezzo</span><span className="text-right font-mono">{fmtDate(v.lastPriceDate)}</span>
+                  <span className="text-muted-foreground">Valore (EUR)</span><span className="text-right font-mono">{fmtEur(v.marketValueEur)}</span>
+                  <span className="text-muted-foreground">P/L non realizzato</span><span className="text-right font-mono">{fmtEur(v.unrealizedPnlEur)}</span>
+                  <span className="text-muted-foreground">P/L realizzato</span><span className="text-right font-mono">{fmtEur(v.realizedPnlEur)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Target e delta: nel tab "Piano di ribilanciamento".</p>
+              </div>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
 
       {/* ===================== DIALOG STORNO ===================== */}
       <Dialog open={!!reverseTargetId} onOpenChange={(v) => !v && setReverseTargetId(null)}>

@@ -192,7 +192,10 @@ export default function Dashboard() {
                 Nessuna decisione di regime persistita.
               </span>
             )}
-            <Button asChild variant="outline" size="sm"><Link to="/signals">Apri Signal Engine</Link></Button>
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm"><Link to="/alerts">Alert</Link></Button>
+              <Button asChild variant="outline" size="sm"><Link to="/signals">Apri Signal Engine</Link></Button>
+            </div>
           </CardContent>
         </Card>
       </div>

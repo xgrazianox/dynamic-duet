@@ -5,7 +5,7 @@ export interface AlertRoutingConfig {
   resolutionType: AlertResolutionType;
   targetPage: AlertTargetPage;
   getTargetEntity?: (alert: Alert) => AlertTargetEntity;
-  getPrefillPayload?: (alert: Alert, context?: any) => AlertPrefillPayload;
+  getPrefillPayload?: (alert: Alert, context?: unknown) => AlertPrefillPayload;
   description: string;
   actionLabel: string;
 }
