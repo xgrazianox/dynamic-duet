@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, passMigrationGateIfPresent, expectHeading } from './helpers';
+import { login, completeOpeningIfPresent, expectHeading } from './helpers';
 
 /**
  * SMOKE — deterministico su QUALSIASI stato dell'account e2e:
@@ -9,7 +9,7 @@ import { login, passMigrationGateIfPresent, expectHeading } from './helpers';
 test.describe('smoke di navigazione', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await passMigrationGateIfPresent(page);
+    await completeOpeningIfPresent(page);
   });
 
   test('dashboard', async ({ page }) => {
@@ -64,6 +64,6 @@ test.describe('smoke di navigazione', () => {
     await page.goto('/settings');
     await expectHeading(page, /impostazioni/i);
     await expect(page.getByLabel(/tolleranza deviazione/i)).toBeVisible();
-    await expect(page.getByText(/sola lettura/i)).toBeVisible();
+    await expect(page.getByText(/dalla prossima valutazione/i)).toBeVisible();
   });
 });

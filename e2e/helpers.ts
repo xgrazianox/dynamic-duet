@@ -3,8 +3,9 @@ import { type Page, expect } from '@playwright/test';
 export function creds() {
   const email = process.env.E2E_EMAIL;
   const password = process.env.E2E_PASSWORD;
-  if (!email || !password) throw new Error('E2E_EMAIL / E2E_PASSWORD non impostate (usa un account e2e-f6-…, MAI il titolare)');
-  if (!/e2e-/.test(email)) throw new Error(`E2E_EMAIL "${email}" non sembra un account di test dedicato (atteso pattern e2e-…)`);
+  if (!email || !password) throw new Error('E2E_EMAIL / E2E_PASSWORD non impostate');
+  // Prefisso OBBLIGATORIO e2e-f6- (mandato F6-r2): mai il titolare, mai account generici.
+  if (!/^e2e-f6-/.test(email)) throw new Error(`E2E_EMAIL "${email}" deve iniziare con "e2e-f6-"`);
   return { email, password };
 }
 
@@ -18,13 +19,18 @@ export async function login(page: Page): Promise<void> {
   await page.waitForURL(url => !url.pathname.startsWith('/auth'), { timeout: 20_000 });
 }
 
-/** Se compare il wizard di apertura (MigrationGate), lo salta/completa col minimo. */
-export async function passMigrationGateIfPresent(page: Page): Promise<void> {
-  const skip = page.getByRole('button', { name: /salta|skip|inizia senza|prosegui/i });
+/** Completa DETERMINISTICAMENTE l'apertura minima se il wizard e' attivo:
+ *  modalita' "blank" (radio #m-blank) → Avanti → Conferma. Nessun pulsante
+ *  "salta" immaginario: e' il percorso reale del MigrationWizard. */
+export async function completeOpeningIfPresent(page: Page): Promise<void> {
+  const blank = page.locator('#m-blank');
   try {
-    await skip.waitFor({ state: 'visible', timeout: 3_000 });
-    await skip.click();
-  } catch { /* gate non presente: ok */ }
+    await blank.waitFor({ state: 'visible', timeout: 4_000 });
+  } catch { return; } // wizard non attivo: apertura gia' completata
+  await blank.click();
+  await page.getByRole('button', { name: /avanti/i }).click();
+  await page.getByRole('button', { name: /^conferma$/i }).click();
+  await expect(page.locator('#m-blank')).toHaveCount(0, { timeout: 20_000 });
 }
 
 export async function expectHeading(page: Page, re: RegExp): Promise<void> {

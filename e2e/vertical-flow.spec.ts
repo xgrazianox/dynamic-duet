@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, passMigrationGateIfPresent } from './helpers';
+import { login, completeOpeningIfPresent } from './helpers';
 
 /**
  * FLUSSO VERTICALE (punto 6 F3 + F5) — richiede un account e2e-f6 FRESCO
@@ -13,7 +13,7 @@ const csvOf = (prices: number[]) => MONTHS.map((m, i) => `${m};${prices[i]}`).jo
 test.describe.serial('flusso verticale prezzo → regime → target → dashboard → piano', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await passMigrationGateIfPresent(page);
+    await completeOpeningIfPresent(page);
   });
 
   test('1. import CSV prezzi driver (WORLDCORE e GOLD)', async ({ page }) => {
