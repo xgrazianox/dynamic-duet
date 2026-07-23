@@ -73,4 +73,16 @@ check "persist_regime_decision.search_path_empty" "yes" "$sp"
 g=$(psql -tAc "SELECT string_agg(g,',' ORDER BY g) FROM (VALUES ('anon'),('authenticated'),('service_role')) t(g) WHERE has_function_privilege(g,'public.persist_regime_decision(jsonb)','EXECUTE')")
 check "persist_regime_decision.exec_grants" "service_role" "$g"
 
+# ---- F5-0 RPC attestations ----
+for fn in acknowledge_regime_event mark_regime_applied; do
+  secdef=$(psql -tAc "SELECT prosecdef FROM pg_proc WHERE proname='$fn'")
+  check "$fn.security_definer" "t" "$secdef"
+  sp=$(psql -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM pg_proc, unnest(coalesce(proconfig,'{}')) cfg WHERE proname='$fn' AND cfg LIKE 'search_path=%') THEN 'yes' ELSE 'no' END")
+  check "$fn.search_path_empty" "yes" "$sp"
+  g=$(psql -tAc "SELECT string_agg(g,',' ORDER BY g) FROM (VALUES ('authenticated'),('service_role')) t(g) WHERE has_function_privilege(g,'public.$fn(text,jsonb)','EXECUTE')")
+  check "$fn.exec_grants" "authenticated,service_role" "$g"
+  anon_bad=$(psql -tAc "SELECT CASE WHEN has_function_privilege('anon','public.$fn(text,jsonb)','EXECUTE') THEN 1 ELSE 0 END")
+  check "$fn.no_anon" "0" "$anon_bad"
+done
+
 (( fail == 0 )) && echo "GOVERNANCE-LIVE-SCHEMA: PASS" || { echo "GOVERNANCE-LIVE-SCHEMA: FAIL"; exit 1; }
