@@ -4,8 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
-import { SignalEngineProvider } from "./contexts/SignalEngineContext";
-import { AppStateProvider } from "./contexts/AppStateContext";
 import { OperationModalProvider } from "./contexts/OperationModalContext";
 import { MigrationGate } from "./components/migration/MigrationGate";
 import AuthPage from "./pages/AuthPage";
@@ -27,9 +25,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <SignalEngineProvider>
-        <AppStateProvider>
-          <BrowserRouter>
+      <BrowserRouter>
           <OperationModalProvider>
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
@@ -47,9 +43,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           </OperationModalProvider>
-          </BrowserRouter>
-        </AppStateProvider>
-      </SignalEngineProvider>
+      </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );

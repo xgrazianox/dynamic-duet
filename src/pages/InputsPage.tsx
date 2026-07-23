@@ -23,7 +23,11 @@ const CURRENCIES: CurrencyCode[] = ['EUR', 'USD', 'CHF'];
 const TYPES: InstrumentType[] = ['ETF', 'ETC', 'STOCK', 'FUND', 'MONETARY'];
 const CLASSES: RegimeClass[] = ['BOTH', 'AGGRESSIVE', 'DEFENSIVE'];
 const SLEEVES: Sleeve[] = ['CORE', 'FACTOR', 'THEME', 'HEDGE', 'MONETARY'];
-const todayIso = () => new Date().toISOString().slice(0, 10);
+const todayIso = () => {
+  // Data di CALENDARIO LOCALE (debito F4 saldato): niente UTC dopo mezzanotte.
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(a) - Date.parse(b)) / 86_400_000);
 
 function errMsg(e: unknown, fallback: string): string {
