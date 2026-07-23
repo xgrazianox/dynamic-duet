@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Settings, Save, SlidersHorizontal, Radio, Coins } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { usePortfolioMeta, useInstruments } from '@/hooks/usePortfolioMeta';
 import { updatePortfolioSettings, type EngineConfigPayload, type SettingsPayload } from '@/services/settings';
+import { createAttemptTracker } from '@/services/attemptKey';
 import { configFromDb } from '@/domain/signalEngine';
 
 /** F6-r2 — TUTTE le modifiche passano da update_portfolio_settings (RPC).
@@ -45,6 +46,7 @@ export default function SettingsPage() {
   const qc = useQueryClient();
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
+  const attempt = useRef(createAttemptTracker());
 
   useEffect(() => {
     if (s && form === null) {
@@ -67,14 +69,16 @@ export default function SettingsPage() {
   }, [s, form]);
 
   const set = (k: keyof FormState) => (v: string) => setForm(f => f ? { ...f, [k]: v } : f);
+  const STRICT_POS = new Set(['rounding_eur', 'min_trade_eur', 'take_profit_pct', 'stale_price_days']);
   const invalid = form ? [
-    ...OPERATIVE.filter(f => { const n = num(form[f.key]); return !Number.isFinite(n) || n < 0 || (f.integer && !Number.isInteger(n)); }).map(f => f.label),
-    ...(form.fx_usd && !(num(form.fx_usd) > 0) ? ['FX USD'] : []),
-    ...(form.fx_chf && !(num(form.fx_chf) > 0) ? ['FX CHF'] : []),
+    ...OPERATIVE.filter(f => { const n = num(form[f.key]); return !Number.isFinite(n) || n < 0 || (STRICT_POS.has(f.key) && !(n > 0)) || (f.integer && !Number.isInteger(n)); }).map(f => f.label),
+    ...(!(num(form.fx_usd) > 0) ? ['FX USD (richiesto, positivo)'] : []),
+    ...(!(num(form.fx_chf) > 0) ? ['FX CHF (richiesto, positivo)'] : []),
     ...(['a_sma','a_conf','b1_sma','b2_sma','b3_look','b_votes','b_conf'] as const)
       .filter(k => !(Number.isInteger(num(form[k])) && num(form[k]) > 0)).map(k => `motore: ${k}`),
     ...(['a_band','b1_band','b2_band'] as const).filter(k => !(num(form[k]) >= 0)).map(k => `motore: ${k}`),
     ...(!(num(form.b3_thr) > 0) ? ['motore: b3_thr'] : []),
+    ...(!(Number.isInteger(num(form.b_votes)) && num(form.b_votes) >= 1 && num(form.b_votes) <= 3) ? ['motore: voti min (1..3)'] : []),
   ] : [];
 
   async function onSave() {
@@ -102,7 +106,8 @@ export default function SettingsPage() {
           },
         },
       };
-      const res = await updatePortfolioSettings(payload);
+      const res = await updatePortfolioSettings(attempt.current.keyFor(payload), payload);
+      attempt.current.complete(); // successo definitivo: il prossimo salvataggio avrà chiave nuova
       toast.success(res.noop ? 'Nessuna modifica: impostazioni già aggiornate' : 'Impostazioni salvate');
       qc.invalidateQueries({ queryKey: ['portfolio-meta'] });
       qc.invalidateQueries({ queryKey: ['portfolio-state'] });

@@ -9,12 +9,10 @@ import { usePortfolioState } from '@/hooks/usePortfolioState';
 import { usePortfolioMeta, useLatestDecision } from '@/hooks/usePortfolioMeta';
 import { useOperationModal } from '@/contexts/operationModalStore';
 import type { Decimal } from '@/domain/decimal';
+import { formatEur } from '@/lib/formatEur';
 
 // ── formatters (presentation-only, nessuna matematica) ──────────────────────
-function eur(v: Decimal | null | undefined): string {
-  if (v === null || v === undefined) return 'n/d';
-  return `€${Number(v.toFixed(2)).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+const eur = formatEur; // helper condiviso (F6-r2.1)
 function signedEur(v: Decimal | null | undefined): { text: string; positive: boolean | null } {
   if (v === null || v === undefined) return { text: 'n/d', positive: null };
   const positive = !v.isNegative();

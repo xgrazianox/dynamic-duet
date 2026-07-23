@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { formatEur } from '@/lib/formatEur';
 import { usePortfolioState } from '@/hooks/usePortfolioState';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -39,10 +40,7 @@ const KINDS: { value: OpKind; label: string }[] = [
 
 const today = (): string => new Date().toISOString().slice(0, 10);
 
-function fmtEur(v: Decimal | null | undefined): string {
-  if (!v) return '—';
-  return `€${Number(v.toFixed(2)).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+const fmtEur = formatEur; // helper condiviso (F6-r2.1)
 
 export interface OperationModalProps {
   open: boolean;

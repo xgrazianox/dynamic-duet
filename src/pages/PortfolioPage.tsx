@@ -31,6 +31,7 @@ import { simulateReversal, opTypeLabel, reversedIds } from '@/domain/reversalSim
 import { latestPriceFor } from '@/domain/pnl';
 import { registerReversal, newIdempotencyKey } from '@/services/operations';
 import { parseDeepLinkParams } from '@/lib/alertRouting';
+import { formatEur } from '@/lib/formatEur';
 
 // ============================================================================
 // Query strumenti con status (colonna non presente nei tipi generati)
@@ -61,12 +62,7 @@ function useInstrumentsWithStatus(userId: string | null | undefined) {
 // ============================================================================
 // Formatters (presentation-only, no math)
 // ============================================================================
-function fmtEur(v: Decimal | null | undefined): string {
-  if (v === null || v === undefined) return '—';
-  const n = Number(v.toFixed(2));
-  const abs = Math.abs(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `${n < 0 ? '−' : ''}€${abs}`; // segno PRIMA del simbolo (it-IT)
-}
+const fmtEur = formatEur; // helper condiviso (F6-r2.1)
 function fmtQty(v: Decimal): string {
   return Number(v.toFixed(6)).toLocaleString('it-IT', { maximumFractionDigits: 6 });
 }
@@ -355,14 +351,17 @@ export default function PortfolioPage() {
                             {isMissing ? <span className="text-muted-foreground text-xs">{missingLabel}</span> : fmtEur(v.marketValueEur)}
                           </TableCell>
                           <TableCell className="text-right font-mono">{weightOf(v.marketValueEur)}</TableCell>
-                          {(() => { const tot = v.unrealizedPnlEur ? v.realizedPnlEur.plus(v.unrealizedPnlEur) : null; return (
-                          <TableCell className={`text-right font-mono ${
-                            tot && tot.lt(0) ? 'text-red-600' : tot && tot.gt(0) ? 'text-green-600' : ''
-                          }`}>
-                            {isMissing ? <span className="text-muted-foreground text-xs">n/d</span> : fmtEur(tot)}
+                          <TableCell className="text-right font-mono text-xs">
+                            {/* F6-r2.1: NESSUN aggregato calcolato qui — due valori DAL DOMINIO */}
+                            <div className={v.realizedPnlEur.lt(0) ? 'text-red-600' : v.realizedPnlEur.gt(0) ? 'text-green-600' : ''}>
+                              Realizzato: {fmtEur(v.realizedPnlEur)}
+                            </div>
+                            <div className={v.unrealizedPnlEur?.lt(0) ? 'text-red-600' : v.unrealizedPnlEur?.gt(0) ? 'text-green-600' : 'text-muted-foreground'}>
+                              Non real.: {isMissing ? 'n/d' : fmtEur(v.unrealizedPnlEur)}
+                            </div>
                             <Button variant="ghost" size="sm" className="ml-1 h-6 px-1 text-xs" aria-label={`Dettaglio ${instr?.ticker ?? ''}`}
                               onClick={() => setDetailId(v.instrumentId)}>ⓘ</Button>
-                          </TableCell> ); })()}
+                          </TableCell>
                           <TableCell className="text-center">
                             {isMissing ? (
                               <Badge variant="outline" className="border-orange-500 text-orange-600 gap-1">
@@ -375,7 +374,7 @@ export default function PortfolioPage() {
                           <TableCell className="text-center">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="sm" aria-label="Azioni posizione"><MoreHorizontal className="h-4 w-4" /></Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="bg-popover border">
                                 <DropdownMenuItem
@@ -411,7 +410,7 @@ export default function PortfolioPage() {
                       <TableCell className="text-center">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="sm" aria-label="Azioni cassa"><MoreHorizontal className="h-4 w-4" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-popover border">
                             <DropdownMenuItem onClick={() => openOpModal({ kind: 'DEPOSIT' })}>Versamento</DropdownMenuItem>

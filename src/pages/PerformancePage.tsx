@@ -14,6 +14,7 @@ import { usePortfolioState } from '@/hooks/usePortfolioState';
 import { usePortfolioMeta } from '@/hooks/usePortfolioMeta';
 import { computePerformance, type DietzResult } from '@/domain/performance';
 import type { Decimal } from '@/domain/decimal';
+import { formatEur } from '@/lib/formatEur';
 
 /** Data di CALENDARIO LOCALE (non UTC): dopo la mezzanotte italiana non deve
  *  comparire il giorno precedente. Debito noto: stessa correzione da estendere
@@ -24,10 +25,7 @@ const todayIso = () => {
 };
 
 // ── presentazione (ROUND_HALF_UP solo qui) ──────────────────────────────────
-function eur(v: Decimal | null | undefined): string {
-  if (v === null || v === undefined) return 'n/d';
-  return `€${Number(v.toFixed(2)).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+const eur = formatEur; // helper condiviso (F6-r2.1)
 function signedEur(v: Decimal | null | undefined): { text: string; positive: boolean | null } {
   if (v === null || v === undefined) return { text: 'n/d', positive: null };
   const positive = !v.isNegative();

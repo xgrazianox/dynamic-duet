@@ -89,6 +89,8 @@ done
 for fn in update_portfolio_settings; do
   secdef=$(psql -tAc "SELECT prosecdef FROM pg_proc WHERE proname='$fn'")
   check "$fn.security_definer" "t" "$secdef"
+  spx=$(psql -tAc "SELECT COALESCE((SELECT cfg FROM pg_proc, unnest(coalesce(proconfig,'{}')) cfg WHERE proname='$fn' AND cfg LIKE 'search_path=%'),'MISSING')")
+  check "$fn.search_path_exact_empty" 'search_path=""' "$spx"
   g=$(psql -tAc "SELECT string_agg(g,',' ORDER BY g) FROM (VALUES ('authenticated'),('service_role')) t(g) WHERE has_function_privilege(g,'public.$fn(text,jsonb)','EXECUTE')")
   check "$fn.exec_grants" "authenticated,service_role" "$g"
   anon_bad=$(psql -tAc "SELECT CASE WHEN has_function_privilege('anon','public.$fn(text,jsonb)','EXECUTE') THEN 1 ELSE 0 END")

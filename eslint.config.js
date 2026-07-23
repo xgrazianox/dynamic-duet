@@ -23,12 +23,4 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
-  // F6-r2 — configurazione PUNTUALE e documentata: i file shadcn/ui esportano
-  // insieme al componente costanti/varianti/hook stabili (cva, useFormField,
-  // useSidebar, toast). Sono export sicuri e intenzionali: un refresh completo
-  // in dev e' accettabile. Regola disattivata SOLO per la cartella ui.
-  {
-    files: ["src/components/ui/**/*.tsx"],
-    rules: { "react-refresh/only-export-components": "off" },
-  },
 );

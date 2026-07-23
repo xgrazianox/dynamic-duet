@@ -18,13 +18,13 @@ import { D, Decimal } from '@/domain/decimal';
 import { computeRegimeState } from '@/domain/regimeState';
 import { computeRebalancePlan, type RebalancePlan, type PlanRow } from '@/domain/rebalance';
 import { markRegimeApplied } from '@/services/regime';
+import { formatEur } from '@/lib/formatEur';
 
 const todayIso = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
-const eur = (v: Decimal | null | undefined) => v == null ? 'n/d'
-  : `€${Number(v.toFixed(2)).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const eur = formatEur; // helper condiviso (F6-r2.1)
 const pctS = (v: Decimal | null | undefined) => v == null ? '—' : `${Number(v.toFixed(2)).toLocaleString('it-IT')}%`;
 const regimeLbl = (r: 'RISK_ON' | 'RISK_OFF' | null) => r === 'RISK_ON' ? 'RISK-ON' : r === 'RISK_OFF' ? 'RISK-OFF' : '—';
 

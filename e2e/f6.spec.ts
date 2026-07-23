@@ -39,6 +39,12 @@ test.describe('F6: IA, mobile, settings RPC', () => {
     await tol.fill('0.8');
     await page.getByRole('button', { name: /salva impostazioni/i }).click();
     await expect(page.getByText(/impostazioni salvate|nessuna modifica/i)).toBeVisible({ timeout: 15_000 });
+    // scenario che avrebbe rilevato il bug della chiave per-contenuto:
+    // secondo salvataggio che modifica SOLO il default FX USD → conferma positiva
+    const fx = page.getByLabel(/default fx usd/i);
+    await fx.fill('0.93');
+    await page.getByRole('button', { name: /salva impostazioni/i }).click();
+    await expect(page.getByText(/impostazioni salvate/i)).toBeVisible({ timeout: 15_000 });
     // campi di sistema MAI esposti
     await expect(page.getByText(/tilt/i)).toHaveCount(0);
     await expect(page.getByText(/last_applied|migration_completed/i)).toHaveCount(0);
@@ -56,7 +62,7 @@ test.describe('F6: IA, mobile, settings RPC', () => {
     await expect(page.getByRole('dialog')).toBeVisible();
   });
 
-  test('posizioni: colonne ridotte, dettaglio nel drawer', async ({ page }) => {
+  test('posizioni: colonne ridotte (verifica statica; apertura drawer coperta a runtime nel momento 2)', async ({ page }) => {
     await page.goto('/portfolio');
     await expect(page.getByRole('columnheader', { name: /costo medio/i })).toHaveCount(0);
     await expect(page.getByRole('columnheader', { name: /prezzo att/i })).toHaveCount(0);

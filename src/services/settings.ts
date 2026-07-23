@@ -1,4 +1,4 @@
-import { callRpc, contentKey } from './rpcClient';
+import { callRpc } from './rpcClient';
 
 /** F6-r2 — le impostazioni si modificano SOLO via update_portfolio_settings. */
 export interface EngineConfigPayload {
@@ -23,9 +23,9 @@ export interface SettingsPayload {
 }
 export interface SettingsResult { updated: boolean; noop: boolean; fields?: string[] }
 
-export async function updatePortfolioSettings(payload: SettingsPayload): Promise<SettingsResult> {
-  // Chiave STABILE per contenuto: il retry dello stesso tentativo → replay;
-  // contenuto identico allo stato → il server dichiara no-op.
-  const canonical = JSON.stringify(payload, Object.keys(payload).sort());
-  return callRpc<SettingsResult>('update_portfolio_settings', contentKey('set', canonical), payload);
+/** La chiave è ESPLICITA e per-tentativo (createAttemptTracker): mai derivata
+ *  dal contenuto — una chiave permanente per contenuto rigiocherebbe risultati
+ *  cached dopo A→B→A. */
+export async function updatePortfolioSettings(key: string, payload: SettingsPayload): Promise<SettingsResult> {
+  return callRpc<SettingsResult>('update_portfolio_settings', key, payload);
 }

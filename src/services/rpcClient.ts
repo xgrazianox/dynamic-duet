@@ -19,10 +19,3 @@ export async function callRpc<T>(fn: RpcName, key: string, payload: unknown): Pr
   if (error) throw new Error(error.message);
   return data as T;
 }
-
-/** Hash deterministico compatto (djb2) per chiavi di idempotenza stabili per contenuto. */
-export function contentKey(prefix: string, canonical: string): string {
-  let h = 5381;
-  for (let i = 0; i < canonical.length; i++) h = ((h << 5) + h + canonical.charCodeAt(i)) >>> 0;
-  return `${prefix}:${h.toString(36)}`;
-}

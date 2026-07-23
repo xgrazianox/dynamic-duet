@@ -4,8 +4,8 @@ Playwright contro un deploy reale (preview Lovable o build locale `vite preview`
 **Nessuna credenziale nel repo**: tutto via variabili d'ambiente.
 
 ## Prerequisiti
-1. Account **dedicato** `e2e-f6-…` (mai il titolare): registrato nell'app, apertura completata o saltata.
-   L'helper rifiuta email che non contengono `e2e-`.
+1. Account **dedicato** `e2e-f6-…` (mai il titolare): l'helper ESIGE il prefisso esatto `e2e-f6-`.
+   L'apertura minima viene COMPLETATA realmente dall'helper (percorso "blank" del wizard: radio → Avanti → Conferma) se il wizard è presente: lo smoke può quindi effettuare l'inizializzazione minima al primo accesso.
 2. Browser Playwright installati: `npx playwright install chromium` (solo la prima volta).
 
 ## Esecuzione
@@ -20,6 +20,7 @@ npx playwright test e2e/vertical-flow.spec.ts  # flusso verticale (richiede acco
 ```
 
 ## Cosa copre
+- 21 test in 3 file: `smoke.spec.ts`, `vertical-flow.spec.ts`, `f6.spec.ts`.
 - `smoke.spec.ts` — login + ogni pagina reale si apre (dashboard, portfolio+tab piano,
   strumenti&prezzi, signals, target, alert, rendimenti, impostazioni); verifica anche
   le assenze volute (colonna Target rimossa, nessun "Segna risolto").
@@ -31,4 +32,4 @@ npx playwright test e2e/vertical-flow.spec.ts  # flusso verticale (richiede acco
 - La serie prezzi del flusso verticale è quella **verificata col motore reale** (15 mesi → RISK-ON determinato).
 - I test sono seriali (`workers: 1`): condividono lo stato dell'account e2e.
 - Lo smoke è ri-eseguibile sempre; il flusso verticale presuppone un account nuovo
-  (oppure accetta gli stati già raggiunti: import ripetuto = upsert, target già v2 → il test 3 fallirebbe, usare account fresco).
+  (account fresco richiesto per il flusso verticale).
