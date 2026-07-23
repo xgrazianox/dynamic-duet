@@ -11,11 +11,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { usePortfolioMeta, useInstruments, useTargets, type InstrumentFull, type TargetSetRow } from '@/hooks/usePortfolioMeta';
-import { saveTargetSet, newTargetKey, type TargetRegime } from '@/services/targets';
+import { saveTargetSet, type TargetRegime } from '@/services/targets';
 
 interface EditRow { key: string; instrument_id: string | null; weight: string; }
 const CASH_KEY = '__cash__';
 const round4 = (n: number) => Math.round(n * 10000) / 10000;
+
+// Canonical, order-independent signature of a composition (for dirty-check + key).
+function canonicalOf(rows: { instrument_id: string | null; weight: number }[]): string {
+  return rows.map(r => `${r.instrument_id ?? ''}:${round4(r.weight)}`).sort().join('|');
+}
+// Small deterministic hash (djb2) — keeps the idempotency key compact.
+function djb2(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
 
 function isCompatible(i: InstrumentFull, regime: TargetRegime): boolean {
   if (i.status !== 'active') return false;
@@ -68,7 +79,20 @@ export function TargetEditor({ regime }: { regime: TargetRegime }) {
   const incompatible = rows.filter(r => r.instrument_id !== null && !compatible.some(i => i.id === r.instrument_id));
   const anyNaN = rows.some(r => r.weight.trim() === '' || !Number.isFinite(Number(r.weight)) || Number(r.weight) < 0);
   const sumOk = Math.abs(sum - 100) < 0.00005;
-  const canSave = sumOk && hasCash && incompatible.length === 0 && !anyNaN && !saving && !!portfolioId;
+
+  // Firma canonica della composizione corrente e di quella ATTIVA.
+  const currentCanonical = canonicalOf(rows.map(r => ({ instrument_id: r.instrument_id, weight: Number(r.weight) || 0 })));
+  const activeCanonical = useMemo(() => {
+    if (!activeSet || !tgtQ.data) return null; // nessuna versione attiva → sempre "dirty" (serve confermare)
+    const a = tgtQ.data.allocs
+      .filter(x => x.target_set_id === activeSet.id)
+      .map(x => ({ instrument_id: x.instrument_id, weight: Number(x.weight) }));
+    return canonicalOf(a);
+  }, [activeSet, tgtQ.data]);
+  // "dirty" = diverso dalla versione attiva. Se non esiste un'attiva (solo bozza seed), è dirty.
+  const isDirty = activeCanonical === null ? true : currentCanonical !== activeCanonical;
+
+  const canSave = sumOk && hasCash && incompatible.length === 0 && !anyNaN && !saving && !!portfolioId && isDirty;
 
   const setWeight = (key: string, w: string) => setRows(rs => rs.map(r => r.key === key ? { ...r, weight: w } : r));
   const removeRow = (key: string) => setRows(rs => rs.filter(r => r.key !== key));
@@ -78,7 +102,11 @@ export function TargetEditor({ regime }: { regime: TargetRegime }) {
     setSaving(true);
     try {
       const payloadRows = rows.map(r => ({ instrument_id: r.instrument_id, weight: round4(Number(r.weight)) }));
-      const res = await saveTargetSet(newTargetKey(), regime, payloadRows);
+      // Chiave STABILE per contenuto + versione-base: un doppio click / retry della
+      // stessa modifica resta idempotente (nessuna versione duplicata); una modifica
+      // diversa, o una nuova modifica dopo che l'attiva è cambiata, ottiene una chiave nuova.
+      const key = `tgt:${regime}:b${activeSet?.version ?? 0}:${djb2(currentCanonical)}`;
+      const res = await saveTargetSet(key, regime, payloadRows);
       toast.success(`Target ${regime} salvato — versione ${res.version} attiva`);
       qc.invalidateQueries({ queryKey: ['targets'] });
       qc.invalidateQueries({ queryKey: ['portfolio-state'] });
@@ -150,6 +178,7 @@ export function TargetEditor({ regime }: { regime: TargetRegime }) {
           {!sumOk && <p className="text-sm text-destructive">La somma dei pesi deve essere esattamente 100 (scarto {(100 - sum).toFixed(4)}).</p>}
           {!hasCash && <p className="text-sm text-destructive">È obbligatoria esattamente una riga Cash.</p>}
           {incompatible.length > 0 && <p className="text-sm text-destructive">Righe incompatibili col regime: {incompatible.map(r => nameOf(r.instrument_id)).join(', ')}.</p>}
+          {!isDirty && sumOk && hasCash && <p className="text-sm text-muted-foreground">Nessuna modifica rispetto alla versione attiva: non verrà creata una nuova versione.</p>}
 
           <div className="flex justify-end">
             <Button disabled={!canSave} onClick={onSave}><Save className="mr-1 h-4 w-4" />Salva versione</Button>
