@@ -835,6 +835,10 @@ export type Database = {
         Returns: Json
       }
       save_target_set: { Args: { _key: string; _payload: Json }; Returns: Json }
+      update_portfolio_settings: {
+        Args: { _key: string; _payload: Json }
+        Returns: Json
+      }
     }
     Enums: {
       currency_code: "EUR" | "USD" | "CHF"
