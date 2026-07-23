@@ -2,6 +2,7 @@ import { D, Decimal, ZERO } from './decimal';
 import { replayLedger } from './ledgerReplay';
 import { projectPositions } from './positions';
 import { valuePositions } from './pnl';
+import { isStalePrice } from './staleness';
 import type { LedgerRow, InstrumentRow, PriceRow, FxRow } from './types';
 
 /* =========================================================================
@@ -103,8 +104,8 @@ function valueAt(inp: PerformanceInputs, asOf: string): StateAt {
   for (const v of valuations) {
     if (v.status === 'valued' && v.marketValueEur) {
       posValue = posValue.plus(v.marketValueEur);
-      // Stantio SOLO oltre la soglia configurata (confine esclusivo: = soglia → non stantio).
-      if (v.lastPriceDate && daysBetween(v.lastPriceDate, asOf) > staleDays) stale = true;
+      // Stantio: definizione condivisa (confine esclusivo: = soglia → non stantio).
+      if (v.lastPriceDate && isStalePrice(v.lastPriceDate, asOf, staleDays)) stale = true;
     } else if (v.quantity.gt(0)) {
       missing += 1;
     }
