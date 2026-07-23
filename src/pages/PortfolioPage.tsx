@@ -18,6 +18,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RebalancePlanPanel } from '@/components/rebalance/RebalancePlanPanel';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   MoreHorizontal, TrendingUp, TrendingDown, X, Undo2, AlertTriangle, Info,
@@ -291,10 +292,11 @@ export default function PortfolioPage() {
         </div>
       )}
 
-      <Tabs defaultValue="positions" className="space-y-4">
+      <Tabs defaultValue={searchParams.get('tab') === 'rebalance' ? 'rebalance' : 'positions'} className="space-y-4">
         <TabsList>
           <TabsTrigger value="positions">Posizioni</TabsTrigger>
           <TabsTrigger value="operations">Vista Operazioni</TabsTrigger>
+          <TabsTrigger value="rebalance">Piano di ribilanciamento</TabsTrigger>
         </TabsList>
 
         {/* ===================== POSIZIONI ===================== */}
@@ -529,6 +531,11 @@ export default function PortfolioPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ===================== PIANO DI RIBILANCIAMENTO (F5) ===================== */}
+        <TabsContent value="rebalance">
+          <RebalancePlanPanel />
         </TabsContent>
       </Tabs>
 

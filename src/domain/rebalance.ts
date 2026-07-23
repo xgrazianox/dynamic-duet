@@ -235,7 +235,7 @@ export function computeRebalancePlan(inp: RebalanceInputs): RebalancePlan {
     const px = pxOf.get(r.instrumentId as string) as Px;
     const step = new Decimal((instById.get(r.instrumentId as string) as RebalanceInstrument).quantityStep);
     let est = r.estimatedEur as Decimal;
-    let fee = r.feeEur as Decimal;
+    const fee = r.feeEur as Decimal;
     if (est.plus(fee).gt(cash)) {
       // 5) riduci per difetto a quantity_step dentro la capienza (commissione inclusa)
       const affordable = cash.minus(fee);
