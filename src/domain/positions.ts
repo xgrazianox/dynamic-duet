@@ -18,6 +18,18 @@ export interface CashState {
   withdrawals: Decimal;
 }
 
+/**
+ * Effetto realizzato di una singola operazione di VENDITA, emesso dallo STESSO
+ * replay canonico (costo medio vigente al momento della vendita). Riusato dal
+ * modulo performance per il win-rate: nessun secondo algoritmo del costo medio.
+ */
+export interface SellEffect {
+  operationId: string;
+  instrumentId: string;
+  effectiveDate: string;
+  realizedPnlEur: Decimal;
+}
+
 const emptyPosition = (id: string): PositionState => ({
   instrumentId: id,
   quantity: ZERO,
@@ -34,8 +46,10 @@ const emptyPosition = (id: string): PositionState => ({
 export function projectPositions(activeLedger: LedgerRow[]): {
   positions: Map<string, PositionState>;
   cash: CashState;
+  sellEffects: SellEffect[];
 } {
   const positions = new Map<string, PositionState>();
+  const sellEffects: SellEffect[] = [];
   const cash: CashState = {
     cashEur: ZERO,
     realizedPnlEur: ZERO,
@@ -108,6 +122,12 @@ export function projectPositions(activeLedger: LedgerRow[]): {
         const pnl = gross.minus(costOfSold).minus(fees);
         p.realizedPnlEur = p.realizedPnlEur.plus(pnl);
         cash.realizedPnlEur = cash.realizedPnlEur.plus(pnl);
+        sellEffects.push({
+          operationId: op.id,
+          instrumentId: op.instrument_id,
+          effectiveDate: op.effective_date,
+          realizedPnlEur: pnl,
+        });
         // Riduco quantità, riduco costo per qty * avg (il CM resta invariato).
         const newQty = p.quantity.minus(qty);
         const newTotalCost = p.totalCostEur.minus(costOfSold);
@@ -145,5 +165,5 @@ export function projectPositions(activeLedger: LedgerRow[]): {
     }
   }
 
-  return { positions, cash };
+  return { positions, cash, sellEffects };
 }

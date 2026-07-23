@@ -14,6 +14,7 @@ export interface PortfolioSettings {
 }
 export interface PortfolioMeta {
   portfolioId: string | null;
+  trackingStartedOn: string | null;
   settings: PortfolioSettings | null;
 }
 
@@ -23,13 +24,13 @@ export function usePortfolioMeta(userId: string | null) {
     enabled: !!userId,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data: pf, error } = await sb.from('portfolios').select('id').eq('user_id', userId).maybeSingle();
+      const { data: pf, error } = await sb.from('portfolios').select('id, tracking_started_on').eq('user_id', userId).maybeSingle();
       if (error) throw error;
-      if (!pf) return { portfolioId: null, settings: null };
+      if (!pf) return { portfolioId: null, trackingStartedOn: null, settings: null };
       const { data: s } = await sb.from('portfolio_settings')
         .select('stale_price_days, default_fx, msci_instrument_id, gold_instrument_id, engine_config')
         .eq('portfolio_id', pf.id).maybeSingle();
-      return { portfolioId: pf.id, settings: (s ?? null) as PortfolioSettings | null };
+      return { portfolioId: pf.id, trackingStartedOn: pf.tracking_started_on ?? null, settings: (s ?? null) as PortfolioSettings | null };
     },
   });
 }
