@@ -1,0 +1,34 @@
+# Suite E2E (F6)
+
+Playwright contro un deploy reale (preview Lovable o build locale `vite preview`).
+**Nessuna credenziale nel repo**: tutto via variabili d'ambiente.
+
+## Prerequisiti
+1. Account **dedicato** `e2e-f6-…` (mai il titolare): registrato nell'app, apertura completata o saltata.
+   L'helper rifiuta email che non contengono `e2e-`.
+2. Browser Playwright installati: `npx playwright install chromium` (solo la prima volta).
+
+## Esecuzione
+```bash
+export E2E_BASE_URL="https://<preview>.lovable.app"   # oppure: npm run build && npm run preview → http://localhost:4173
+export E2E_EMAIL="e2e-f6-01@esempio.test"
+export E2E_PASSWORD="********"
+
+npm run test:e2e            # tutta la suite
+npx playwright test e2e/smoke.spec.ts          # solo smoke (nessuna mutazione, qualsiasi stato account)
+npx playwright test e2e/vertical-flow.spec.ts  # flusso verticale (richiede account FRESCO)
+```
+
+## Cosa copre
+- `smoke.spec.ts` — login + ogni pagina reale si apre (dashboard, portfolio+tab piano,
+  strumenti&prezzi, signals, target, alert, rendimenti, impostazioni); verifica anche
+  le assenze volute (colonna Target rimossa, nessun "Segna risolto").
+- `vertical-flow.spec.ts` — il flusso end-to-end: import CSV driver → "Valuta regime"
+  (Edge Function) → decisione persistita RISK-ON → conferma target v2 (con idempotenza UI)
+  → Dashboard → piano di ribilanciamento → alert reali.
+
+## Note
+- La serie prezzi del flusso verticale è quella **verificata col motore reale** (15 mesi → RISK-ON determinato).
+- I test sono seriali (`workers: 1`): condividono lo stato dell'account e2e.
+- Lo smoke è ri-eseguibile sempre; il flusso verticale presuppone un account nuovo
+  (oppure accetta gli stati già raggiunti: import ripetuto = upsert, target già v2 → il test 3 fallirebbe, usare account fresco).
