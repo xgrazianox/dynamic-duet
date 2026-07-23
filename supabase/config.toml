@@ -1,1 +1,3 @@
 project_id = "trkcxsebgsbsnrhvfowv"
+[functions.evaluate_regime]
+verify_jwt = true

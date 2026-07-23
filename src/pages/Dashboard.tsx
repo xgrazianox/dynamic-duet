@@ -1,11 +1,13 @@
-import { Wallet, TrendingUp, TrendingDown, Layers, Plus, Info, AlertTriangle } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, Layers, Plus, Info, AlertTriangle, ArrowRightLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { usePortfolioState } from '@/hooks/usePortfolioState';
+import { usePortfolioMeta, useLatestDecision } from '@/hooks/usePortfolioMeta';
 import { useOperationModal } from '@/contexts/operationModalStore';
-import { FeaturePlaceholder, SIGNAL_ENGINE_PLACEHOLDER } from '@/components/common/FeaturePlaceholder';
 import type { Decimal } from '@/domain/decimal';
 
 // ── formatters (presentation-only, nessuna matematica) ──────────────────────
@@ -52,9 +54,16 @@ function PnlCard({ label, v }: { label: string; v: Decimal | null | undefined })
   );
 }
 
+const regimeLabel = (r: 'RISK_ON' | 'RISK_OFF' | null | undefined) =>
+  r === 'RISK_ON' ? 'RISK-ON' : r === 'RISK_OFF' ? 'RISK-OFF' : 'Non determinato';
+const regimeBg = (r: 'RISK_ON' | 'RISK_OFF' | null | undefined) =>
+  r === 'RISK_ON' ? 'bg-emerald-600' : r === 'RISK_OFF' ? 'bg-sky-600' : 'bg-muted-foreground';
+
 export default function Dashboard() {
   const { user } = useCurrentUser();
   const { state, isLoading, isError } = usePortfolioState(user?.id ?? null);
+  const meta = usePortfolioMeta(user?.id ?? null);
+  const decisionQ = useLatestDecision(meta.data?.portfolioId ?? null);
   const { open: openOpModal } = useOperationModal();
 
   const currentMonth = new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
@@ -159,12 +168,33 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Signal Engine: placeholder neutro fino alla F3 (nessun output mock) */}
+      {/* Signal Engine: SOLO la decisione persistita. Nessun fallback Risk-On. */}
       <div>
         <div className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <Layers className="h-4 w-4" /> Signal Engine
+          <Layers className="h-4 w-4" /> Regime di mercato
         </div>
-        <FeaturePlaceholder message={SIGNAL_ENGINE_PLACEHOLDER} />
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            {decisionQ.data ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge className={`${regimeBg(decisionQ.data.final_regime)} text-white`}>
+                  {regimeLabel(decisionQ.data.final_regime)}
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  al mese <span className="font-mono">{decisionQ.data.as_of_month}</span>
+                </span>
+                {decisionQ.data.is_switch && (
+                  <Badge variant="outline" className="gap-1"><ArrowRightLeft className="h-3 w-3" />switch</Badge>
+                )}
+              </div>
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                Nessuna decisione di regime persistita.
+              </span>
+            )}
+            <Button asChild variant="outline" size="sm"><Link to="/signals">Apri Signal Engine</Link></Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

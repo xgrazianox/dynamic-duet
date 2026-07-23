@@ -49,9 +49,28 @@ rls_off=$(psql -tAc "SELECT count(*) FROM pg_tables t JOIN pg_class c ON c.relna
 check "rls_all_enabled" "0" "$rls_off"
 
 trg=$(psql -tAc "SELECT string_agg(t.tgname, ',' ORDER BY t.tgname) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE NOT t.tgisinternal AND n.nspname='public'")
-check "triggers" "operations_no_delete,operations_no_update,trg_portfolios_protected,trg_settings_protected" "$trg"
+check "triggers" "operations_no_delete,operations_no_update,trg_fx_rates_protected,trg_instruments_no_delete,trg_instruments_protected,trg_portfolios_protected,trg_price_points_protected,trg_settings_protected" "$trg"
 
 bootmd5=$(psql -tAc "SELECT md5(prosrc) FROM pg_proc WHERE proname='bootstrap_user_data'")
 check "bootstrap_user_data.md5" "$EXPECTED_MD5" "$bootmd5"
+
+# ---- F3-0 RPC attestations (SECURITY DEFINER, search_path='', grants) ----
+# save_target_set: authenticated + service_role
+secdef=$(psql -tAc "SELECT prosecdef FROM pg_proc WHERE proname='save_target_set'")
+check "save_target_set.security_definer" "t" "$secdef"
+sp=$(psql -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM pg_proc, unnest(coalesce(proconfig,'{}')) cfg WHERE proname='save_target_set' AND cfg LIKE 'search_path=%') THEN 'yes' ELSE 'no' END")
+check "save_target_set.search_path_empty" "yes" "$sp"
+g=$(psql -tAc "SELECT string_agg(g,',' ORDER BY g) FROM (VALUES ('authenticated'),('service_role')) t(g) WHERE has_function_privilege(g,'public.save_target_set(text,jsonb)','EXECUTE')")
+check "save_target_set.exec_grants" "authenticated,service_role" "$g"
+anon_bad=$(psql -tAc "SELECT CASE WHEN has_function_privilege('anon','public.save_target_set(text,jsonb)','EXECUTE') THEN 1 ELSE 0 END")
+check "save_target_set.no_anon" "0" "$anon_bad"
+
+# persist_regime_decision: service_role ONLY
+secdef=$(psql -tAc "SELECT prosecdef FROM pg_proc WHERE proname='persist_regime_decision'")
+check "persist_regime_decision.security_definer" "t" "$secdef"
+sp=$(psql -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM pg_proc, unnest(coalesce(proconfig,'{}')) cfg WHERE proname='persist_regime_decision' AND cfg LIKE 'search_path=%') THEN 'yes' ELSE 'no' END")
+check "persist_regime_decision.search_path_empty" "yes" "$sp"
+g=$(psql -tAc "SELECT string_agg(g,',' ORDER BY g) FROM (VALUES ('anon'),('authenticated'),('service_role')) t(g) WHERE has_function_privilege(g,'public.persist_regime_decision(jsonb)','EXECUTE')")
+check "persist_regime_decision.exec_grants" "service_role" "$g"
 
 (( fail == 0 )) && echo "GOVERNANCE-LIVE-SCHEMA: PASS" || { echo "GOVERNANCE-LIVE-SCHEMA: FAIL"; exit 1; }
