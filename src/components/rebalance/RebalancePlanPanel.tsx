@@ -81,6 +81,7 @@ export function RebalancePlanPanel() {
   // Stato sintetico del piano
   const statusLabel = useMemo(() => {
     if (!plan || plan.status === 'blocked') return { text: 'Bloccato', cls: 'bg-destructive' };
+    if (!plan.executable) return { text: 'Non eseguibile', cls: 'bg-destructive' };
     if (regimeState.isFirstAdoption) return { text: 'Prima adozione', cls: 'bg-amber-600' };
     if (regimeState.migrationNeeded) return { text: 'Migrazione richiesta', cls: 'bg-amber-600' };
     const anyAction = plan.rows.some(r => (r.action && !r.suppressed && !r.blockedReason) || r.sellAll);
@@ -135,7 +136,8 @@ export function RebalancePlanPanel() {
             <span className="text-sm">Regime applicato: <strong>{regimeLbl(regimeState.lastAppliedRegime)}</strong></span>
             {plan.status === 'ok' && (
               <span className="text-sm text-muted-foreground">
-                Cash: {eur(plan.cashBeforeEur)} → {eur(plan.cashAfterEur)} · commissioni simulate {eur(plan.totalFeesEur)}
+                Valore: {eur(plan.totalValueEur)} → simulato {eur(plan.postTradeTotalEur)} (post-commissioni) ·
+                Cash: {eur(plan.cashBeforeEur)} → {eur(plan.cashAfterEur)} · commissioni {eur(plan.totalFeesEur)}
               </span>
             )}
           </div>
@@ -152,6 +154,15 @@ export function RebalancePlanPanel() {
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             Piano non disponibile: {plan.blockReasons.join('; ')}.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {plan.status === 'ok' && !plan.executable && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Piano non eseguibile: {plan.infeasibleReasons.join('; ')}. Le proposte sono mostrate a scopo informativo, senza azioni dirette.
           </AlertDescription>
         </Alert>
       )}
@@ -214,7 +225,7 @@ export function RebalancePlanPanel() {
                     <TableCell className="text-right font-mono">{r.estimatedEur ? eur(r.estimatedEur) : r.theoreticalEur ? `(${eur(r.theoreticalEur)})` : '—'}</TableCell>
                     <TableCell className="text-right font-mono">{r.residualDeviationPp ? `${Number(r.residualDeviationPp.toFixed(2)).toLocaleString('it-IT')} pp` : '—'}</TableCell>
                     <TableCell className="text-right">
-                      {r.action && !r.suppressed && !r.blockedReason && r.quantity && r.instrumentId && (
+                      {plan.executable && r.action && !r.suppressed && !r.blockedReason && r.quantity && r.instrumentId && (
                         <Button size="sm" variant="outline" onClick={() => openProposal(r)}>Apri {r.action}</Button>
                       )}
                     </TableCell>

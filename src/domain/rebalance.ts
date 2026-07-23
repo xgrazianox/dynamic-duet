@@ -66,10 +66,19 @@ export interface RebalancePlan {
   status: 'ok' | 'blocked';
   blockReasons: string[];
   rows: PlanRow[];
+  /** Valore INIZIALE del portafoglio. */
   totalValueEur: Decimal | null;
+  /** Valore SIMULATO dopo le commissioni: initial − totalFees. */
+  postTradeTotalEur: Decimal | null;
+  /** Somma dei valori posizione simulati (invariante: + cashAfter = postTradeTotal). */
+  simulatedPositionsValueEur: Decimal | null;
   cashBeforeEur: Decimal;
+  /** Cash finale simulato REALE: può essere negativo (mai mascherato). */
   cashAfterEur: Decimal | null;
   totalFeesEur: Decimal;
+  /** false se la simulazione produce cash negativo: piano NON eseguibile così com'è. */
+  executable: boolean;
+  infeasibleReasons: string[];
   cashShortfall: CashShortfall | null;
   staleWarnings: string[];  // ticker con prezzo stantio (warning, non blocco)
 }
@@ -93,8 +102,14 @@ export function computeRebalancePlan(inp: RebalanceInputs): RebalancePlan {
   const targetByInst = new Map<string, Decimal>();
   let cashTargetPct = ZERO;
   for (const t of inp.targetRows ?? []) {
-    if (t.instrumentId === null) cashTargetPct = t.weightPct;
-    else targetByInst.set(t.instrumentId, t.weightPct);
+    if (t.instrumentId === null) {
+      cashTargetPct = t.weightPct; // la riga cash con peso zero resta valida
+    } else if (t.weightPct.gt(0)) {
+      targetByInst.set(t.instrumentId, t.weightPct);
+    }
+    // HOTFIX F5: una riga strumento con peso 0 è ECONOMICAMENTE fuori target:
+    // se posseduta → sell-all (come assente); se non posseduta → fuori
+    // dall'universo operativo (nessun prezzo/FX richiesto, mai bloccante).
   }
 
   // Universo strumenti: posseduti (qty>0) ∪ strumenti target
@@ -139,7 +154,9 @@ export function computeRebalancePlan(inp: RebalanceInputs): RebalancePlan {
   if (blockReasons.length > 0) {
     return {
       status: 'blocked', blockReasons, rows: [], totalValueEur: null,
+      postTradeTotalEur: null, simulatedPositionsValueEur: null,
       cashBeforeEur: inp.cashEur, cashAfterEur: null, totalFeesEur: ZERO,
+      executable: false, infeasibleReasons: [],
       cashShortfall: null, staleWarnings: [],
     };
   }
@@ -253,32 +270,54 @@ export function computeRebalancePlan(inp: RebalanceInputs): RebalancePlan {
     cash = cash.minus(est).minus(fee);
     totalFees = totalFees.plus(fee);
   }
-  // 7) cash finale mai negativo (per costruzione; guardia difensiva)
-  if (cash.lt(0)) cash = ZERO;
+  // HOTFIX F5: NESSUN clamp del cash negativo. Se vendite+commissioni simulate
+  // producono cash < 0, il piano è NON ESEGUIBILE e lo dichiara.
+  const infeasibleReasons: string[] = [];
+  if (cash.lt(0)) {
+    infeasibleReasons.push(
+      `le commissioni simulate superano i ricavi delle vendite: cash finale simulato €${cash.toFixed(2)} — piano non eseguibile così com'è`,
+    );
+  }
 
-  // Deviazioni residue stimate + riga cash
+  // Valore SIMULATO post-commissioni (le commissioni escono dal patrimonio).
+  const postTradeTotal = total.minus(totalFees);
+  if (postTradeTotal.lte(0)) {
+    infeasibleReasons.push('il valore simulato post-commissioni non è positivo');
+  }
+  const executable = infeasibleReasons.length === 0;
+  const residualBase = postTradeTotal.gt(0) ? postTradeTotal : null;
+
+  // Deviazioni residue stimate sul valore POST-commissioni + invariante.
+  let simulatedPositions = ZERO;
   for (const r of rows) {
     if (r.instrumentId === null) continue;
     let newValue = r.currentValueEur;
     if (!r.suppressed && !r.blockedReason && r.estimatedEur) {
       newValue = r.action === 'BUY' ? newValue.plus(r.estimatedEur) : newValue.minus(r.estimatedEur);
     }
-    r.residualDeviationPp = newValue.div(total).times(100).minus(r.targetWeightPct).abs();
+    simulatedPositions = simulatedPositions.plus(newValue);
+    r.residualDeviationPp = residualBase
+      ? newValue.div(residualBase).times(100).minus(r.targetWeightPct).abs()
+      : null;
   }
   const cashRow: PlanRow = {
     instrumentId: null, ticker: 'Cash (liquidità)',
     currentValueEur: inp.cashEur, currentWeightPct: inp.cashEur.div(total).times(100),
     targetWeightPct: cashTargetPct, deltaWeightPp: inp.cashEur.div(total).times(100).minus(cashTargetPct),
     action: null, sellAll: false, theoreticalEur: null, quantity: null, estimatedEur: null, feeEur: null,
-    residualDeviationPp: cash.div(total).times(100).minus(cashTargetPct).abs(),
+    residualDeviationPp: residualBase ? cash.div(residualBase).times(100).minus(cashTargetPct).abs() : null,
     priceNative: null, suppressed: false, suppressReason: null, blockedReason: null, stale: false,
   };
   rows.push(cashRow);
 
   const hadCashIssues = reductions.length > 0;
   return {
-    status: 'ok', blockReasons: [], rows, totalValueEur: total,
+    status: 'ok', blockReasons: [], rows,
+    totalValueEur: total,
+    postTradeTotalEur: postTradeTotal,
+    simulatedPositionsValueEur: simulatedPositions,
     cashBeforeEur: inp.cashEur, cashAfterEur: cash, totalFeesEur: totalFees,
+    executable, infeasibleReasons,
     cashShortfall: hadCashIssues ? { availableEur: cashAfterSells, requiredEur, reductions } : null,
     staleWarnings,
   };

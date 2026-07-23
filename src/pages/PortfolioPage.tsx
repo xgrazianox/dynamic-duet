@@ -317,7 +317,8 @@ export default function PortfolioPage() {
                       <TableHead className="text-right">P/L non real.</TableHead>
                       <TableHead className="text-right">P/L realizzato</TableHead>
                       <TableHead className="text-right">Peso</TableHead>
-                      <TableHead className="text-right">Target</TableHead>
+                      {/* HOTFIX F5: colonna Target rimossa — il target autoritativo
+                          vive nel tab "Piano di ribilanciamento" */}
                       <TableHead className="text-center">Stato</TableHead>
                       <TableHead className="text-center">Azioni</TableHead>
                     </TableRow>
@@ -370,9 +371,6 @@ export default function PortfolioPage() {
                             {fmtEur(v.realizedPnlEur)}
                           </TableCell>
                           <TableCell className="text-right font-mono">{weightOf(v.marketValueEur)}</TableCell>
-                          <TableCell className="text-right text-xs text-muted-foreground">
-                            n/d — target non confermato
-                          </TableCell>
                           <TableCell className="text-center">
                             {isMissing ? (
                               <Badge variant="outline" className="border-orange-500 text-orange-600 gap-1">
@@ -420,7 +418,6 @@ export default function PortfolioPage() {
                       <TableCell className="text-right font-mono">—</TableCell>
                       <TableCell className="text-right font-mono">—</TableCell>
                       <TableCell className="text-right font-mono">{cashWeight()}</TableCell>
-                      <TableCell className="text-right text-xs text-muted-foreground">n/d</TableCell>
                       <TableCell className="text-center"><Badge variant="outline">Cash</Badge></TableCell>
                       <TableCell className="text-center">
                         <DropdownMenu>

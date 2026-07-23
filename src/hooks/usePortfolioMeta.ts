@@ -162,12 +162,13 @@ export function useRegimeDecisions(portfolioId: string | null) {
     enabled: !!portfolioId,
     staleTime: 15_000,
     queryFn: async () => {
+      // HOTFIX F5: nessun limite arbitrario — una lunga coda di UNDETERMINED
+      // non deve mai far scomparire un regime determinato precedente.
       const { data, error } = await sb.from('regime_decisions')
         .select('id,as_of_month,decided_at,final_regime,regime_a,regime_b,decision_mode,is_switch,engine_version,acknowledged_at')
         .eq('portfolio_id', portfolioId)
         .order('as_of_month', { ascending: false })
-        .order('decided_at', { ascending: false })
-        .limit(120);
+        .order('decided_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as RegimeDecisionFull[];
     },
