@@ -15,7 +15,13 @@ import { usePortfolioMeta } from '@/hooks/usePortfolioMeta';
 import { computePerformance, type DietzResult } from '@/domain/performance';
 import type { Decimal } from '@/domain/decimal';
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+/** Data di CALENDARIO LOCALE (non UTC): dopo la mezzanotte italiana non deve
+ *  comparire il giorno precedente. Debito noto: stessa correzione da estendere
+ *  altrove (InputsPage usa ancora toISOString) — fuori scope di questo hotfix. */
+const todayIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 // ── presentazione (ROUND_HALF_UP solo qui) ──────────────────────────────────
 function eur(v: Decimal | null | undefined): string {
@@ -50,6 +56,7 @@ export default function PerformancePage() {
   const { data: inputs, state, isLoading } = usePortfolioState(user?.id ?? null);
   const meta = usePortfolioMeta(user?.id ?? null);
   const trackingStartedOn = meta.data?.trackingStartedOn ?? null;
+  const stalePriceDays = meta.data?.settings?.stale_price_days ?? 45; // fallback SOLO se il setting non è disponibile
   const asOf = todayIso();
 
   // Un solo calcolo, memoizzato: nessuna matematica finanziaria nei componenti.
@@ -62,8 +69,9 @@ export default function PerformancePage() {
       fxRates: inputs.fxRates,
       trackingStartedOn,
       asOf,
+      stalePriceDays,
     });
-  }, [inputs, trackingStartedOn, asOf]);
+  }, [inputs, trackingStartedOn, asOf, stalePriceDays]);
 
   const managerial = state?.totals.managerialPnlEur ?? null;
   const managerialSigned = signedEur(managerial);

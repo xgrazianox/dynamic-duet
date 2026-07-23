@@ -147,23 +147,37 @@ describe('Modified Dietz — casi golden', () => {
     expect(r.sinceInception.returnPct).toBeNull();
   });
 
-  it('denominatore ≤ 0 → n/d', () => {
+  it('denominatore ≤ 0 → n/d (ledger economicamente valido: cash mai negativo)', () => {
     reset();
+    // OPENING_CASH 100, OTHER_INCOME 100 (interno, non flusso) PRIMA del WITHDRAW 200:
+    // il cash resta ≥ 0 in ogni istante, ma il denominatore Dietz
+    // = VI 100 − 200·w  con w=(30−2)/30 → 100 − 186,67 < 0 → n/d.
     const ops = [
       op({ op_type: 'OPENING_CASH', effective_date: '2026-01-01', gross_amount_eur: '100' }),
-      op({ op_type: 'WITHDRAW', effective_date: '2026-01-02', gross_amount_eur: '150' }), // denom = 100 − 150·(29/30) < 0
+      op({ op_type: 'OTHER_INCOME', effective_date: '2026-01-02', gross_amount_eur: '100' }),
+      op({ op_type: 'WITHDRAW', effective_date: '2026-01-03', gross_amount_eur: '200' }),
     ];
     const r = computePerformance(inputs({ operations: ops, trackingStartedOn: '2026-01-01', asOf: '2026-01-31' }));
     expect(r.sinceInception.status).toBe('na');
     expect(r.sinceInception.reason).toMatch(/denominatore/);
   });
 
-  it('prezzo/FX completamente mancante → n/d', () => {
+  it('prezzo completamente mancante → n/d', () => {
     reset();
     const ops = [op({ op_type: 'OPENING_POSITION', instrument_id: 'AAA', effective_date: '2026-01-31', quantity: '1', opening_cost_eur: '100', gross_amount_eur: '100', price_ccy: '100', currency: 'EUR', fx_eur_per_unit: '1' })];
-    // nessun price row fornito → posizione aperta non valorizzabile
+    // nessun price row fornito → posizione aperta non valorizzabile (missing_price)
     const r = computePerformance(inputs({ operations: ops, prices: [], trackingStartedOn: '2026-01-31', asOf: '2026-02-28' }));
     expect(r.sinceInception.status).toBe('na');
+    expect(r.valueSeries.every(v => v.status === 'na')).toBe(true);
+  });
+
+  it('FX mancante (strumento USD con prezzo, nessun fx_rate) → n/d', () => {
+    reset();
+    const USD: InstrumentRow = { id: 'UUU', ticker: 'UUU', name: 'U', currency: 'USD', quantity_step: '1' };
+    const ops = [op({ op_type: 'OPENING_POSITION', instrument_id: 'UUU', effective_date: '2026-01-31', quantity: '1', opening_cost_eur: '100', gross_amount_eur: '100', price_ccy: '110', currency: 'USD', fx_eur_per_unit: '0.9' })];
+    const prices: PriceRow[] = [{ instrument_id: 'UUU', price_date: '2026-01-31', close_price: '110' }];
+    const r = computePerformance({ operations: ops, instruments: [USD], prices, fxRates: [], trackingStartedOn: '2026-01-31', asOf: '2026-02-28' });
+    expect(r.sinceInception.status).toBe('na'); // missing_fx, non missing_price
     expect(r.valueSeries.every(v => v.status === 'na')).toBe(true);
   });
 
@@ -174,7 +188,52 @@ describe('Modified Dietz — casi golden', () => {
     const last = r.valueSeries[r.valueSeries.length - 1];
     expect(last.status).toBe('ok');
     expect(last.value).not.toBeNull();
-    expect(last.stale).toBe(true);
+    expect(last.stale).toBe(true); // 59 giorni > 45
+  });
+
+  it('stantio — confini: 45 giorni no, 46 sì, ieri (anche a cavallo di mese) no', () => {
+    reset();
+    const mk = (priceDate: string, asOf: string) => {
+      reset();
+      const ops = [op({ op_type: 'OPENING_POSITION', instrument_id: 'AAA', effective_date: priceDate, quantity: '1', opening_cost_eur: '100', gross_amount_eur: '100', price_ccy: '120', currency: 'EUR', fx_eur_per_unit: '1' })];
+      const r = computePerformance(inputs({ operations: ops, prices: [price(priceDate, '120')], trackingStartedOn: priceDate, asOf, stalePriceDays: 45 }));
+      return r.valueSeries[r.valueSeries.length - 1];
+    };
+    // 2026-01-01 → 2026-02-15 = 45 giorni esatti → NON stantio (confine esclusivo)
+    expect(mk('2026-01-01', '2026-02-15').stale).toBe(false);
+    // 2026-01-01 → 2026-02-16 = 46 giorni → stantio
+    expect(mk('2026-01-01', '2026-02-16').stale).toBe(true);
+    // prezzo di ieri, mese precedente (2026-01-31 → 2026-02-01 = 1 giorno) → NON stantio
+    expect(mk('2026-01-31', '2026-02-01').stale).toBe(false);
+  });
+
+  it('confini mensili: tracking a fine mese → un solo periodo, nessun t0→t0', () => {
+    reset();
+    const ops = [op({ op_type: 'OPENING_CASH', effective_date: '2026-01-31', gross_amount_eur: '100' })];
+    const r = computePerformance(inputs({ operations: ops, trackingStartedOn: '2026-01-31', asOf: '2026-02-28' }));
+    expect(r.monthly).toHaveLength(1);
+    expect(r.monthly[0].periodStart).toBe('2026-01-31');
+    expect(r.monthly[0].periodEnd).toBe('2026-02-28');
+    expect(r.monthly.every(m => m.periodEnd > m.periodStart)).toBe(true);
+  });
+
+  it('curva del valore: date uniche e ordinate, t0 mai duplicato', () => {
+    reset();
+    const ops = [op({ op_type: 'OPENING_CASH', effective_date: '2026-01-31', gross_amount_eur: '100' })];
+    const r = computePerformance(inputs({ operations: ops, trackingStartedOn: '2026-01-31', asOf: '2026-03-15' }));
+    const dates = r.valueSeries.map(p => p.date);
+    expect(new Set(dates).size).toBe(dates.length);
+    expect([...dates].sort()).toEqual(dates);
+    expect(dates[0]).toBe('2026-01-31');
+  });
+
+  it('tracking = asOf → since-inception n/d per T=0 e nessun falso periodo mensile', () => {
+    reset();
+    const ops = [op({ op_type: 'OPENING_CASH', effective_date: '2026-01-31', gross_amount_eur: '100' })];
+    const r = computePerformance(inputs({ operations: ops, trackingStartedOn: '2026-01-31', asOf: '2026-01-31' }));
+    expect(r.sinceInception.status).toBe('na');
+    expect(r.monthly).toHaveLength(0);
+    expect(r.valueSeries.map(p => p.date)).toEqual(['2026-01-31']);
   });
 
   it('nessun flusso: concatenamento mensile = rendimento complessivo (caso particolare)', () => {

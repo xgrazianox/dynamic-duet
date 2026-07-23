@@ -21,7 +21,11 @@ export interface PerformanceInputs {
   fxRates: FxRow[];
   trackingStartedOn: string | null; // YYYY-MM-DD
   asOf: string;                      // YYYY-MM-DD (ultima data di valorizzazione richiesta)
+  /** Soglia "prezzo stantio" in giorni di calendario (da portfolio_settings.stale_price_days). */
+  stalePriceDays?: number;
 }
+
+const DEFAULT_STALE_DAYS = 45;
 
 export type CellStatus = 'ok' | 'na';
 
@@ -79,7 +83,6 @@ const monthEndOf = (d: string): string => {
   const [y, m] = d.split('-').map(Number);
   return fmt(Date.UTC(y, m, 0)); // giorno 0 del mese successivo = ultimo giorno di questo mese
 };
-const monthStartOf = (d: string): string => `${d.slice(0, 7)}-01`;
 const nextMonthEnd = (monthEnd: string): string => {
   const [y, m] = monthEnd.split('-').map(Number);
   return fmt(Date.UTC(y, m + 1, 0)); // ultimo giorno del mese successivo
@@ -96,11 +99,12 @@ function valueAt(inp: PerformanceInputs, asOf: string): StateAt {
   let posValue = ZERO;
   let missing = 0;
   let stale = false;
-  const monthStart = monthStartOf(asOf);
+  const staleDays = inp.stalePriceDays ?? DEFAULT_STALE_DAYS;
   for (const v of valuations) {
     if (v.status === 'valued' && v.marketValueEur) {
       posValue = posValue.plus(v.marketValueEur);
-      if (v.lastPriceDate && v.lastPriceDate < monthStart) stale = true;
+      // Stantio SOLO oltre la soglia configurata (confine esclusivo: = soglia → non stantio).
+      if (v.lastPriceDate && daysBetween(v.lastPriceDate, asOf) > staleDays) stale = true;
     } else if (v.quantity.gt(0)) {
       missing += 1;
     }
@@ -168,15 +172,19 @@ export function computePerformance(inp: PerformanceInputs): PerformanceResult {
     };
   }
 
-  // Confini mensili: primo month-end ≥ t0, poi mensili, fino a ≤ asOf.
+  // Confini mensili: primo month-end STRETTAMENTE > t0 (mai il periodo nullo t0→t0:
+  // se il tracking parte a fine mese, il primo periodo chiude alla fine del mese
+  // successivo), poi mensili, fino a ≤ asOf. Ogni periodo ha periodEnd > periodStart.
   const monthEnds: string[] = [];
   let e = monthEndOf(t0);
+  if (e <= t0) e = nextMonthEnd(e);
   while (e <= asOf) { monthEnds.push(e); e = nextMonthEnd(e); }
 
-  // Curva del valore: t0, ogni month-end concluso, e l'eventuale punto finale ad asOf.
+  // Curva del valore: t0, ogni month-end concluso, e l'eventuale punto finale ad
+  // asOf — date UNICHE e ordinate (t0 non è mai duplicato: i monthEnds sono > t0).
   const curveDates: string[] = [t0, ...monthEnds];
-  if (monthEnds.length === 0 || monthEnds[monthEnds.length - 1] < asOf) {
-    if (asOf !== t0) curveDates.push(asOf);
+  if ((monthEnds.length === 0 || monthEnds[monthEnds.length - 1] < asOf) && asOf !== t0) {
+    curveDates.push(asOf);
   }
   const valueSeries: ValuePoint[] = curveDates.map(date => {
     const s = valueAt(inp, date);
