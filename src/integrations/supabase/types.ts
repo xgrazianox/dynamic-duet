@@ -825,6 +825,7 @@ export type Database = {
         Args: { _key: string; _payload: Json }
         Returns: Json
       }
+      persist_regime_decision: { Args: { _payload: Json }; Returns: Json }
       register_operation: {
         Args: { _key: string; _payload: Json }
         Returns: Json
@@ -833,6 +834,7 @@ export type Database = {
         Args: { _key: string; _payload: Json }
         Returns: Json
       }
+      save_target_set: { Args: { _key: string; _payload: Json }; Returns: Json }
     }
     Enums: {
       currency_code: "EUR" | "USD" | "CHF"
