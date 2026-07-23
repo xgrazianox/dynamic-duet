@@ -85,4 +85,18 @@ for fn in acknowledge_regime_event mark_regime_applied; do
   check "$fn.no_anon" "0" "$anon_bad"
 done
 
+# ---- F6-r2: update_portfolio_settings + niente UPDATE diretto client ----
+for fn in update_portfolio_settings; do
+  secdef=$(psql -tAc "SELECT prosecdef FROM pg_proc WHERE proname='$fn'")
+  check "$fn.security_definer" "t" "$secdef"
+  g=$(psql -tAc "SELECT string_agg(g,',' ORDER BY g) FROM (VALUES ('authenticated'),('service_role')) t(g) WHERE has_function_privilege(g,'public.$fn(text,jsonb)','EXECUTE')")
+  check "$fn.exec_grants" "authenticated,service_role" "$g"
+  anon_bad=$(psql -tAc "SELECT CASE WHEN has_function_privilege('anon','public.$fn(text,jsonb)','EXECUTE') THEN 1 ELSE 0 END")
+  check "$fn.no_anon" "0" "$anon_bad"
+done
+nu=$(psql -tAc "SELECT CASE WHEN has_table_privilege('authenticated','public.portfolio_settings','UPDATE') THEN 1 ELSE 0 END")
+check "portfolio_settings.no_direct_update" "0" "$nu"
+np=$(psql -tAc "SELECT count(*) FROM pg_policies WHERE tablename='portfolio_settings' AND policyname='psettings_upd_own'")
+check "portfolio_settings.upd_policy_dropped" "0" "$np"
+
 (( fail == 0 )) && echo "GOVERNANCE-LIVE-SCHEMA: PASS" || { echo "GOVERNANCE-LIVE-SCHEMA: FAIL"; exit 1; }
