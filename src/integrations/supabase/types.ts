@@ -816,12 +816,20 @@ export type Database = {
       }
       _owned_portfolio: { Args: never; Returns: string }
       _replay_check: { Args: { _pid: string }; Returns: undefined }
+      acknowledge_regime_event: {
+        Args: { _key: string; _payload: Json }
+        Returns: Json
+      }
       amend_opening_import: {
         Args: { _key: string; _payload: Json }
         Returns: Json
       }
       bootstrap_user_data: { Args: { _user_id: string }; Returns: string }
       import_opening_balances: {
+        Args: { _key: string; _payload: Json }
+        Returns: Json
+      }
+      mark_regime_applied: {
         Args: { _key: string; _payload: Json }
         Returns: Json
       }
