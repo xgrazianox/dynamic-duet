@@ -32,7 +32,10 @@ test.describe.serial('flusso verticale prezzo → regime → target → dashboar
     await page.goto('/signals');
     await page.getByRole('button', { name: /valuta regime/i }).click();
     await expect(page.getByText(/regime valutato: risk-on/i)).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText(/decisione persistita/i)).toBeVisible();
+    // La card "Decisione persistita" non deve piu' mostrare lo stato vuoto:
+    // dopo l'invalidazione della query compare il badge del regime persistito.
+    await expect(page.getByRole('heading', { name: /decisione persistita/i })).toBeVisible();
+    await expect(page.getByText(/nessuna decisione persistita/i)).toHaveCount(0, { timeout: 15_000 });
   });
 
   test('3. conferma target Risk-On → v2 attiva; doppio salvataggio non duplica', async ({ page }) => {

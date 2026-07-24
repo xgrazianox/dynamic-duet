@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, completeOpeningIfPresent } from './helpers';
+import { login, completeOpeningIfPresent, seedDepositIfEmpty } from './helpers';
 
 /** F6-r2 — navigazione 6 aree, mobile, deep-link, settings via RPC, niente campi di sistema. */
 test.describe('F6: IA, mobile, settings RPC', () => {
@@ -9,6 +9,7 @@ test.describe('F6: IA, mobile, settings RPC', () => {
   });
 
   test('desktop: sei aree primarie, Alert non in sidebar ma raggiungibile dalla Dashboard', async ({ page }) => {
+    await seedDepositIfEmpty(page); // la Dashboard vuota non mostra la sezione regime/Alert
     await page.goto('/');
     const nav = page.getByLabel('Navigazione principale').first();
     for (const name of ['Dashboard', 'Portafoglio', 'Strumenti & Prezzi', 'Rendimenti', 'Impostazioni', 'Signal Engine']) {
@@ -30,7 +31,8 @@ test.describe('F6: IA, mobile, settings RPC', () => {
 
   test('deep-link ?tab=rebalance apre direttamente il piano', async ({ page }) => {
     await page.goto('/portfolio?tab=rebalance');
-    await expect(page.getByText(/regime applicabile/i)).toBeVisible({ timeout: 15_000 });
+    // Ancorata: "Regime applicabile: …" (il messaggio "…nessun regime applicabile…" non deve contare)
+    await expect(page.getByText(/^regime applicabile/i)).toBeVisible({ timeout: 15_000 });
   });
 
   test('settings: salvataggio via RPC e nessun campo di sistema esposto', async ({ page }) => {
@@ -40,9 +42,11 @@ test.describe('F6: IA, mobile, settings RPC', () => {
     await page.getByRole('button', { name: /salva impostazioni/i }).click();
     await expect(page.getByText(/impostazioni salvate|nessuna modifica/i)).toBeVisible({ timeout: 15_000 });
     // scenario che avrebbe rilevato il bug della chiave per-contenuto:
-    // secondo salvataggio che modifica SOLO il default FX USD → conferma positiva
+    // secondo salvataggio che modifica SOLO il default FX USD → conferma positiva.
+    // Alterna il valore per garantire una modifica reale anche nei re-run.
     const fx = page.getByLabel(/default fx usd/i);
-    await fx.fill('0.93');
+    const cur = await fx.inputValue();
+    await fx.fill(cur === '0.93' ? '0.92' : '0.93');
     await page.getByRole('button', { name: /salva impostazioni/i }).click();
     await expect(page.getByText(/impostazioni salvate/i)).toBeVisible({ timeout: 15_000 });
     // campi di sistema MAI esposti

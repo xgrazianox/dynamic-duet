@@ -49,6 +49,25 @@ export async function completeOpeningIfPresent(page: Page): Promise<void> {
   await expect(page.locator('#m-blank')).toHaveCount(0, { timeout: 20_000 });
 }
 
+/** Se la Dashboard e' nello stato vuoto (account e2e appena creato), registra un
+ *  VERSAMENTO minimo con il percorso reale: bottone "Registra versamento" →
+ *  modale operazione → Conferma. Idempotente: a portafoglio non vuoto non fa nulla.
+ *  Serve perche' la Dashboard vuota (per design) non mostra la sezione regime
+ *  ne' il bottone Alert. */
+export async function seedDepositIfEmpty(page: Page): Promise<void> {
+  await page.goto('/');
+  const seedBtn = page.getByRole('button', { name: /registra versamento/i });
+  try {
+    await seedBtn.waitFor({ state: 'visible', timeout: 5_000 });
+  } catch { return; } // portafoglio non vuoto: nessuna inizializzazione
+  await seedBtn.click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByPlaceholder('0.00').fill('10000'); // Importo (EUR) — unico campo con questo placeholder nel tipo Versamento
+  await dialog.getByRole('button', { name: /conferma operazione/i }).click();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+}
+
 export async function expectHeading(page: Page, re: RegExp): Promise<void> {
   await expect(page.getByRole('heading', { name: re }).first()).toBeVisible({ timeout: 15_000 });
 }

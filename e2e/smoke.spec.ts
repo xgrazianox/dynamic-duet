@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { login, completeOpeningIfPresent, expectHeading } from './helpers';
+import { login, completeOpeningIfPresent, expectHeading, seedDepositIfEmpty } from './helpers';
 
 /**
  * SMOKE — deterministico su QUALSIASI stato dell'account e2e:
  * login + ogni pagina si apre e mostra la propria intestazione reale.
- * Nessuna mutazione.
+ * Unica mutazione possibile: l'inizializzazione minima al PRIMO accesso
+ * (apertura wizard + versamento seed se il portafoglio e' vuoto, come da README);
+ * dai run successivi nessuna mutazione.
  */
 test.describe('smoke di navigazione', () => {
   test.beforeEach(async ({ page }) => {
@@ -13,6 +15,7 @@ test.describe('smoke di navigazione', () => {
   });
 
   test('dashboard', async ({ page }) => {
+    await seedDepositIfEmpty(page); // la sezione "Regime di mercato" esiste solo a portafoglio non vuoto
     await page.goto('/');
     await expectHeading(page, /dashboard/i);
     await expect(page.getByText(/regime di mercato/i)).toBeVisible();
@@ -22,7 +25,8 @@ test.describe('smoke di navigazione', () => {
     await page.goto('/portfolio');
     await expect(page.getByRole('tab', { name: /piano di ribilanciamento/i })).toBeVisible();
     await page.getByRole('tab', { name: /piano di ribilanciamento/i }).click();
-    await expect(page.getByText(/regime applicabile/i)).toBeVisible();
+    // Ancorata: "Regime applicabile: …" (il messaggio "…nessun regime applicabile…" non deve contare)
+    await expect(page.getByText(/^regime applicabile/i)).toBeVisible();
     // La colonna Target NON deve esistere nella tabella Posizioni (hotfix F5)
     await page.getByRole('tab', { name: /posizioni/i }).click();
     await expect(page.getByRole('columnheader', { name: /^target$/i })).toHaveCount(0);

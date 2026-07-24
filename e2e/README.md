@@ -8,6 +8,9 @@ Playwright contro un deploy reale (preview Lovable o build locale `vite preview`
    Non serve registrarlo a mano: se l'accesso fallisce, l'helper lo **registra da solo**
    (percorso "Registrati" del form reale).
    L'apertura minima viene COMPLETATA realmente dall'helper (percorso "blank" del wizard: radio → Avanti → Conferma) se il wizard è presente: lo smoke può quindi effettuare l'inizializzazione minima al primo accesso.
+   Se il portafoglio è vuoto, i test che ne hanno bisogno registrano un **versamento seed**
+   (€10.000) con il percorso reale della modale operazione: la Dashboard vuota, per design,
+   non mostra la sezione regime né il bottone Alert. Dai run successivi nessuna mutazione.
 2. Browser Playwright installati: `npx playwright install chromium` (solo la prima volta).
 
 ## Esecuzione
