@@ -53,10 +53,16 @@ test.describe.serial('flusso verticale prezzo → regime → target → dashboar
     await expect(page.getByText(/RISK-ON/).first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test('5. piano di ribilanciamento: regime applicabile presente, cash nell\'universo', async ({ page }) => {
+  test('5. piano di ribilanciamento: regime applicabile RISK-ON, blocco dichiarato (fail-explicit)', async ({ page }) => {
     await page.goto('/portfolio?tab=rebalance');
     await expect(page.getByText(/regime applicabile:\s*risk-on/i)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/cash \(liquidità\)/i)).toBeVisible();
+    // Il target RISK-ON di default ha 10 strumenti; questo flusso importa i prezzi
+    // dei SOLI driver. Comportamento corretto (principio F5): il piano NON viene
+    // calcolato e i motivi sono dichiarati per esteso, mai silenziosamente.
+    // (Il percorso "piano calcolabile" con riga cash e' coperto dai golden vitest
+    // del dominio rebalance.)
+    await expect(page.getByText(/piano non disponibile/i)).toBeVisible();
+    await expect(page.getByText(/prezzo mancante/i)).toBeVisible();
   });
 
   test('6. alert: eventi e condizioni derivano dai dati reali', async ({ page }) => {
