@@ -38,14 +38,25 @@ test.describe.serial('flusso verticale prezzo → regime → target → dashboar
     await expect(page.getByText(/nessuna decisione persistita/i)).toHaveCount(0, { timeout: 15_000 });
   });
 
-  test('3. conferma target Risk-On → v2 attiva; doppio salvataggio non duplica', async ({ page }) => {
+  test('3. conferma target Risk-On → versione attiva; doppio salvataggio non duplica', async ({ page }) => {
     await page.goto('/risk-on');
     const save = page.getByRole('button', { name: /salva versione/i });
+    const noChanges = page.getByText(/nessuna modifica rispetto alla versione attiva/i);
+    // Editor caricato: la riga Cash e' sempre presente nel target
+    await expect(page.getByText(/cash \(liquidità\)/i)).toBeVisible({ timeout: 15_000 });
+    if (await noChanges.isVisible()) {
+      // Run ripetuto: la conferma e' gia' avvenuta in un run precedente.
+      // L'esito idempotente E' lo stato atteso: una versione attiva nello storico,
+      // salvataggio disabilitato (nessuna nuova versione verrebbe creata).
+      await expect(save).toBeDisabled();
+      await expect(page.getByText(/^attiva$/)).toBeVisible(); // badge nello storico: una sola attiva per regime
+      return;
+    }
     await save.click();
-    await expect(page.getByText(/versione 2 attiva/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/versione \d+ attiva/i)).toBeVisible({ timeout: 15_000 });
     // idempotenza UI: senza modifiche il pulsante si disabilita
     await expect(save).toBeDisabled();
-    await expect(page.getByText(/nessuna modifica rispetto alla versione attiva/i)).toBeVisible();
+    await expect(noChanges).toBeVisible();
   });
 
   test('4. dashboard mostra la decisione persistita', async ({ page }) => {

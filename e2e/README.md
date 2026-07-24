@@ -36,5 +36,7 @@ npx playwright test e2e/vertical-flow.spec.ts  # flusso verticale (richiede acco
 ## Note
 - La serie prezzi del flusso verticale è quella **verificata col motore reale** (15 mesi → RISK-ON determinato).
 - I test sono seriali (`workers: 1`): condividono lo stato dell'account e2e.
-- Lo smoke è ri-eseguibile sempre; il flusso verticale presuppone un account nuovo
-  (account fresco richiesto per il flusso verticale).
+- L'intera suite è **ri-eseguibile** sullo stesso account: i passi con effetti
+  (import prezzi, valutazione regime, conferma target, salvataggio impostazioni)
+  sono idempotenti o consapevoli dello stato — al re-run verificano direttamente
+  l'esito già raggiunto.
