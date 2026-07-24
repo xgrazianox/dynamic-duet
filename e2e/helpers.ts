@@ -9,13 +9,29 @@ export function creds() {
   return { email, password };
 }
 
-/** Login via form dell'app; attende l'uscita dalla pagina /auth. */
+/** Login via form dell'app; attende l'uscita dalla pagina /auth.
+ *  Locatori per tipo di input (AuthPage non associa Label e Input via htmlFor/id,
+ *  quindi getByLabel non funziona). Se l'accesso fallisce (account e2e non ancora
+ *  registrato), passa alla modalita' "Registrati" e crea l'account: la guardia
+ *  sul prefisso e2e-f6- resta l'unico account che questa suite puo' toccare. */
 export async function login(page: Page): Promise<void> {
   const { email, password } = creds();
   await page.goto('/auth');
-  await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(password);
-  await page.getByRole('button', { name: /accedi|login|sign in/i }).click();
+  const emailInput = page.locator('input[type="email"]');
+  const passwordInput = page.locator('input[type="password"]');
+  await emailInput.fill(email);
+  await passwordInput.fill(password);
+  await page.getByRole('button', { name: /^accedi$/i }).click();
+  try {
+    await page.waitForURL(url => !url.pathname.startsWith('/auth'), { timeout: 15_000 });
+    return; // accesso riuscito
+  } catch {
+    // Accesso fallito: tentativo di registrazione dell'account e2e dedicato.
+  }
+  await page.getByRole('button', { name: /registrati/i }).click();
+  await emailInput.fill(email);
+  await passwordInput.fill(password);
+  await page.getByRole('button', { name: /crea account/i }).click();
   await page.waitForURL(url => !url.pathname.startsWith('/auth'), { timeout: 20_000 });
 }
 

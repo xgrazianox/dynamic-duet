@@ -5,6 +5,8 @@ Playwright contro un deploy reale (preview Lovable o build locale `vite preview`
 
 ## Prerequisiti
 1. Account **dedicato** `e2e-f6-…` (mai il titolare): l'helper ESIGE il prefisso esatto `e2e-f6-`.
+   Non serve registrarlo a mano: se l'accesso fallisce, l'helper lo **registra da solo**
+   (percorso "Registrati" del form reale).
    L'apertura minima viene COMPLETATA realmente dall'helper (percorso "blank" del wizard: radio → Avanti → Conferma) se il wizard è presente: lo smoke può quindi effettuare l'inizializzazione minima al primo accesso.
 2. Browser Playwright installati: `npx playwright install chromium` (solo la prima volta).
 
